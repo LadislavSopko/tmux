@@ -19,6 +19,15 @@
 └──────────────┘ └──────────────┘ └──────────────┘
 ```
 
+## Current Status
+
+**Phase 1: COMPLETE ✓**
+- tmux.exe compiles and links (1.87MB)
+- 154/154 C files compile
+- Runtime: `tmux -V` outputs "tmux 3.5.0"
+
+**Next: Phase 2-6 Implementation**
+
 ## BBC Pattern (Black Box Composition)
 
 [Principle]
@@ -39,25 +48,25 @@
 
 ```
 windows/
-├── CMakeLists.txt           # Build system
-├── build.bat                # Build + test script
+├── CMakeLists.txt           # Build system ✓
+├── build.bat                # Build + test script ✓
 ├── docs/
 │   ├── PORTING-PLAN.md      # Master plan with checkboxes
 │   ├── TDD-STRATEGY.md      # Test strategy
 │   └── OPERATIONAL-RULES.md # Workflow rules
 ├── include/
-│   └── compat-win32.h       # Windows compatibility header
+│   ├── compat-win32.h       # Main Windows compat ✓
+│   └── [20+ POSIX headers]  # sys/, termios.h, etc. ✓
 ├── src/
-│   ├── osdep-win32.c        # OS-dependent (3 functions)
-│   ├── pty-win32.c          # ConPTY wrapper [TODO]
-│   ├── ipc-win32.c          # Named Pipes [TODO]
-│   ├── proc-win32.c         # Process management [TODO]
-│   └── signal-win32.c       # Signal emulation [TODO]
+│   ├── osdep-win32.c        # OS-dependent ✓
+│   ├── pty-win32.c          # ConPTY wrapper (stub, TODO Phase 2)
+│   ├── ipc-win32.c          # Named Pipes (stub, TODO Phase 3)
+│   ├── proc-win32.c         # Process management (stub, TODO Phase 4)
+│   ├── signal-win32.c       # Signal emulation (stub, TODO Phase 5)
+│   ├── daemon-win32.c       # Background process (stub) ✓
+│   └── imsg-win32.c         # Message protocol (stub) ✓
 └── tests/
-    ├── test_pty.c           # PTY tests [TODO]
-    ├── test_ipc.c           # IPC tests [TODO]
-    ├── test_proc.c          # Process tests [TODO]
-    └── test_signal.c        # Signal tests [TODO]
+    └── [TODO: unit tests]
 ```
 
 ## Layer 1: PTY Abstraction

@@ -8,11 +8,19 @@
 @branch::master
 @language::C{87%}
 
+## Build Status
+
+**Phase 1: COMPLETE ✓**
+- tmux.exe: 1.87MB
+- 154/154 C files compile
+- `tmux -V` outputs "tmux 3.5.0"
+
 ## Project Structure
 
 ```
 tmux/                        # Root
 ├── *.c, *.h                 # Original tmux sources (~142 files)
+├── cmd-parse.c              # Generated from cmd-parse.y (tracked for Windows)
 ├── compat/                  # POSIX compat implementations
 ├── pocs/                    # Windows API proof-of-concepts ✓VALIDATED
 │   ├── 01-conpty/          # ConPTY test ✓WORKS
@@ -21,44 +29,44 @@ tmux/                        # Root
 │   ├── 04-console-events/  # Signal test ~COMPILES
 │   ├── 05-pdcurses/        # Curses test -SKIPPED
 │   └── 06-libevent-win/    # Event loop -SKIPPED
-├── windows/                 # Windows port (NEW)
-│   ├── CMakeLists.txt      # Build system
-│   ├── build.bat           # Build script
+├── windows/                 # Windows port ✓PHASE1-COMPLETE
+│   ├── CMakeLists.txt      # Build system ✓
+│   ├── build.bat           # Build script ✓
+│   ├── build/bin/tmux.exe  # OUTPUT ✓
 │   ├── docs/               # Documentation
-│   ├── include/            # Windows headers
-│   ├── src/                # Windows implementations
+│   ├── include/            # 20+ Windows headers ✓
+│   ├── src/                # Windows implementations (stubs)
 │   └── tests/              # Unit tests (TDD)
 └── memory-bank/            # Project state
 ```
 
 ## Dependencies
 
-[Required]
-libevent::EventLoop{✓Windows-supported}
-PDCurses::TerminalUI{ncurses-replacement}
+[Installed via vcpkg]
+libevent::2.2.0{✓Windows-supported}
+pdcurses::3.9{✓Windows-supported}
+→vcpkg in windows/thirdparty/vcpkg
 
 [Windows SDK]
 Windows10+{build-1809+}
 ConPTY-API::Required
-MSVC2019+|MinGW-w64::Compiler
+MSVC2022+::Compiler
 
 [Link Libraries]
-kernel32.lib::Process,file,console
-advapi32.lib::Security,registry
-user32.lib::Window-messages
-ws2_32.lib::Winsock{optional}
+kernel32.lib, advapi32.lib, user32.lib, ws2_32.lib
+event_core.lib, pdcurses.lib
 
 ## POSIX→Windows Mapping
 
-| POSIX | Windows | Validated |
-|-------|---------|-----------|
-| forkpty() | CreatePseudoConsole() | ✓POC-01 |
-| socket(AF_UNIX) | CreateNamedPipe() | ✓POC-02 |
-| fork+exec | CreateProcess() | ✓POC-03 |
+| POSIX | Windows | Status |
+|-------|---------|--------|
+| forkpty() | CreatePseudoConsole() | ✓POC-01, stub in pty-win32.c |
+| socket(AF_UNIX) | CreateNamedPipe() | ✓POC-02, stub in ipc-win32.c |
+| fork+exec | CreateProcess() | ✓POC-03, stub in proc-win32.c |
 | waitpid | WaitForSingleObject() | ✓POC-03 |
 | kill | TerminateProcess() | ✓POC-03 |
-| signal/sigaction | SetConsoleCtrlHandler() | ~POC-04 |
-| termios | Console API | ?TODO |
+| signal/sigaction | SetConsoleCtrlHandler() | ~POC-04, stub in signal-win32.c |
+| termios | Console API | stub |
 
 ## Build Commands
 
@@ -66,8 +74,14 @@ ws2_32.lib::Winsock{optional}
 ```batch
 cd D:\Projekty\AI_Works\tmux\windows
 build.bat
-:: Output: windows/build/bin/*.exe
+:: Output: windows/build/bin/tmux.exe
 :: Runs: cmake configure + build + ctest
+```
+
+[Test Version]
+```batch
+windows\build\bin\tmux.exe -V
+:: Output: tmux 3.5.0
 ```
 
 [POCs - Reference]
@@ -90,23 +104,22 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-## Test Commands
+## Source Patches Applied
 
-[Run All Tests]
-```batch
-cd windows
-build.bat
-:: Automatically runs ctest
-```
+[Files Patched for Windows]
+- popup.c: SIZE enum → POPUP_SIZE
+- mode-tree.c: VLA → _alloca
+- input.c: Forward declarations with INPUT_TABLE_DEF
+- resize.c + tmux.h: resize_window → tmux_resize_window
+- environ.c, client.c, tmux.c: environ handling
+- compat/base64.c, compat/setenv.c: include fixes
 
-[Run Single Test]
-```batch
-cd windows/build/bin
-test_pty.exe
-test_ipc.exe
-test_proc.exe
-test_signal.exe
-```
+[compat-win32.h Additions]
+- #undef ERROR (Windows macro conflict)
+- #undef SIZE (Windows typedef conflict)
+- closefrom, getline, ctime_r implementations
+- getptmfd, fdforkpty stubs
+- 20+ POSIX headers in windows/include/
 
 ## Development Workflow
 

@@ -54,7 +54,13 @@ tmux.exe::Native{ConPTY+Win32API}
 ?Test::Needs-manual-validation
 →POC-04-console-events::COMPILES
 
-[Milestone5::Integration] ?PENDING
+[Milestone5::Phase1Foundation] ✓COMPLETE
+✓tmux.exe::Compiles+Links
+✓154/154-files::Compile
+✓Runtime::tmux-V-works
+→Phase1::100%-DONE
+
+[Milestone6::Integration] ?PENDING
 ?tmux::new-session+split-pane+detach+attach
 ?FullFunctionality
 →Requires::Phase2-6-implementation
