@@ -4,45 +4,48 @@
 
 ## Current Focus
 
-@task::Phase3-IPC-Layer-Complete
-⚡active::Phase 3 complete, ready for Phase 4 Process/Signal
+@task::Phase4-Signals-Complete
+⚡active::Phase 4 complete, ready for Phase 5 Terminal
 
-## Session 2026-01-29 - Phase 3 COMPLETE ✓
+## Session 2026-01-29 - Phase 4 COMPLETE ✓
 
-### Completed Work - Phase 3 IPC Layer
+### Completed Work - Phase 4 Signal Emulation
 
-1. **ipc-win32.h** - Named Pipes IPC interface header:
-   - `ipc_socket_to_pipe_path()` - Converts Unix path to Named Pipe path
-   - `ipc_server_create()` - Creates Named Pipe server
-   - `ipc_server_accept()` - Accepts client connection
-   - `ipc_client_connect()` - Connects to Named Pipe server
-   - `ipc_close()` - Closes IPC connection
-   - `ipc_server_exists()` - Checks if server exists
-   - `ipc_get_handle()` - Gets underlying HANDLE
+1. **signal-win32.h** - Signal emulation interface:
+   - `signal_init()` / `signal_shutdown()` - Initialize/cleanup
+   - `signal_register()` / `signal_unregister()` - Handler registration
+   - `signal_kill()` - Send signal to process
+   - `signal_watch_child()` / `signal_unwatch_child()` - SIGCHLD emulation
+   - `signal_get_console_size()` - Console size for SIGWINCH
+   - `signal_enable_winch()` / `signal_disable_winch()` - Window resize
 
-2. **ipc-win32.c** (400+ lines) - Full Named Pipes implementation:
-   - CreateNamedPipeA with FILE_FLAG_OVERLAPPED
-   - CreateFileA for client connection
-   - ConnectNamedPipe for accept
-   - _open_osfhandle for libevent fd compatibility
-   - Internal ipc_pipe tracking structure
+2. **signal-win32.c** (450+ lines) - Full signal emulation:
+   - `SetConsoleCtrlHandler()` for CTRL+C/BREAK/CLOSE events
+   - Thread-based child process monitoring for SIGCHLD
+   - Console size polling for SIGWINCH
+   - `sigaction()` implementation
+   - `kill()` implementation with TerminateProcess fallback
 
-3. **server.c** - Windows IPC integration:
-   - `#include "ipc-win32.h"` for Windows
-   - `server_create_socket()`: Uses `ipc_server_create()` on Windows
-   - `server_accept()`: Uses `ipc_server_accept()` on Windows
+3. **compat-win32.h** - Updated signal definitions:
+   - Added SIGKILL, NSIG definitions
+   - Added signal_handler_t typedef
+   - Changed sigaction/kill from inline stubs to extern declarations
 
-4. **client.c** - Windows IPC integration:
-   - `#include "ipc-win32.h"` for Windows
-   - `client_connect()`: Uses `ipc_client_connect()` on Windows
-   - Simplified retry logic (no Unix file locking on Windows)
+### Signal Mapping
+| POSIX Signal | Windows Implementation |
+|--------------|------------------------|
+| SIGINT | CTRL_C_EVENT |
+| SIGTERM | CTRL_BREAK_EVENT / TerminateProcess |
+| SIGHUP | CTRL_CLOSE_EVENT |
+| SIGCHLD | Thread monitoring + WaitForSingleObject |
+| SIGWINCH | Console size polling |
+| SIGKILL | TerminateProcess |
 
 ### Build Status
 - ✓ All files compile
 - ✓ tmux.exe links successfully
-- ⚠ Minor type coercion warnings (non-blocking)
+- ⚠ Minor type coercion warnings (existing)
 
-### Next: Phase 4 - Process Management + Signals
-- proc.c: Signal emulation
-- signal-win32.c: Windows signal handling
-- Reference: POC-04 (pocs/04-console-events/)
+### Next: Phase 5 - Terminal Integration
+- tty.c: Console API integration
+- termios emulation for Windows console modes

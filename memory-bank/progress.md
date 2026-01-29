@@ -10,10 +10,11 @@ Phase0.5:POCs       ████████░░░░  80% (core done)
 Phase1:Foundation   ████████████ 100% ✓ COMPLETE
 Phase2:PTY-Layer    ████████████ 100% ✓ COMPLETE
 Phase3:IPC-Layer    ████████████ 100% ✓ COMPLETE
-Phase4:Signals      ░░░░░░░░░░░░   0% (next)
-Phase5-6:Impl       ░░░░░░░░░░░░   0% (ready)
+Phase4:Signals      ████████████ 100% ✓ COMPLETE
+Phase5:Terminal     ░░░░░░░░░░░░   0% (next)
+Phase6:Integration  ░░░░░░░░░░░░   0% (ready)
 
-Overall: ~80%
+Overall: ~85%
 ```
 
 ## Phase 1: Foundation ✓100% COMPLETE
@@ -106,10 +107,30 @@ Overall: ~80%
 - ✓ EXE links
 - ⚠ Minor type warnings - non-blocking
 
-## Phase 4-6: Implementation ⏳READY TO START
+## Phase 4: Signal Emulation ✓100% COMPLETE
 
-- Phase 4: Process Management + Signals ← NEXT
-- Phase 5: Terminal Integration
+**POSIX signal emulation complete!**
+
+### Implementation ✓COMPLETE
+- [x] signal-win32.h - Signal emulation interface
+- [x] signal-win32.c (450+ lines) - Full signal emulation
+- [x] compat-win32.h - Updated signal definitions
+
+### Key Implementation Details
+- `SetConsoleCtrlHandler()` for CTRL+C/BREAK/CLOSE
+- Thread-based child monitoring for SIGCHLD
+- Console size polling for SIGWINCH
+- `sigaction()` and `kill()` implementations
+- Signal handler registration and dispatch
+
+### Build Status
+- ✓ All files compile
+- ✓ EXE links
+- ⚠ Minor type warnings - non-blocking
+
+## Phase 5-6: Implementation ⏳READY TO START
+
+- Phase 5: Terminal Integration ← NEXT
 - Phase 6: Full Integration
 
 ## File Counts

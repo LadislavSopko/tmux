@@ -136,7 +136,7 @@ typedef long ssize_t;
 
 /*
  * Signal definitions - map to Windows events
- * These are placeholders; actual implementation in signal-win32.c
+ * Actual implementation in signal-win32.c
  */
 #ifndef SIGCHLD
 #define SIGCHLD     17
@@ -153,11 +153,19 @@ typedef long ssize_t;
 #define SIGTERM     15
 #define SIGUSR1     10
 #define SIGUSR2     12
+#define SIGKILL     9
+#endif
+
+#ifndef NSIG
+#define NSIG        32
 #endif
 
 #define SIG_DFL     ((void (*)(int))0)
 #define SIG_IGN     ((void (*)(int))1)
 #define SIG_ERR     ((void (*)(int))-1)
+
+/* Signal handler type */
+typedef void (*signal_handler_t)(int);
 
 /* sigaction structure and flags */
 #define SA_RESTART  0x10000000
@@ -184,23 +192,13 @@ static __inline int sigaddset(sigset_t *set, int signum) { if (set) *set |= (1UL
 static __inline int sigdelset(sigset_t *set, int signum) { if (set) *set &= ~(1UL << signum); return 0; }
 static __inline int sigismember(const sigset_t *set, int signum) { return set ? ((*set >> signum) & 1) : 0; }
 
-static __inline int sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
-{
-    (void)sig; (void)act; (void)oact;
-    /* Stub - actual implementation in signal-win32.c */
-    return 0;
-}
+/* sigaction and kill - implemented in signal-win32.c */
+int sigaction(int sig, const struct sigaction *act, struct sigaction *oact);
+int kill(pid_t pid, int sig);
 
 static __inline int sigprocmask(int how, const sigset_t *set, sigset_t *oset)
 {
     (void)how; (void)set; (void)oset;
-    return 0;
-}
-
-static __inline int kill(pid_t pid, int sig)
-{
-    (void)pid; (void)sig;
-    /* Stub - actual implementation in signal-win32.c */
     return 0;
 }
 
