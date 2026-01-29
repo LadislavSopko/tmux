@@ -33,6 +33,7 @@ set(WIN32_SOURCES
     src/signal-win32.c
     src/daemon-win32.c
     src/imsg-win32.c
+    src/tty-win32.c
 )
 
 # Core tmux sources (platform-independent)

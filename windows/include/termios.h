@@ -126,25 +126,12 @@ struct termios {
     speed_t  c_ospeed;
 };
 
-/* Stub implementations */
-static __inline int tcgetattr(int fd, struct termios *termios_p)
-{
-    (void)fd;
-    if (termios_p) {
-        memset(termios_p, 0, sizeof(*termios_p));
-        termios_p->c_iflag = ICRNL | IXON;
-        termios_p->c_oflag = OPOST | ONLCR;
-        termios_p->c_cflag = CS8 | CREAD;
-        termios_p->c_lflag = ISIG | ICANON | ECHO | ECHOE | ECHOK;
-    }
-    return 0;
-}
+/* Real implementations in tty-win32.c */
+int tcgetattr_win32(int fd, struct termios *termios_p);
+int tcsetattr_win32(int fd, int optional_actions, const struct termios *termios_p);
 
-static __inline int tcsetattr(int fd, int optional_actions, const struct termios *termios_p)
-{
-    (void)fd; (void)optional_actions; (void)termios_p;
-    return 0;
-}
+#define tcgetattr(fd, t) tcgetattr_win32(fd, t)
+#define tcsetattr(fd, a, t) tcsetattr_win32(fd, a, t)
 
 static __inline speed_t cfgetispeed(const struct termios *termios_p)
 {

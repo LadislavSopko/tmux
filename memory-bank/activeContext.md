@@ -4,48 +4,45 @@
 
 ## Current Focus
 
-@task::Phase4-Signals-Complete
-⚡active::Phase 4 complete, ready for Phase 5 Terminal
+@task::Phase5-Terminal-Complete
+⚡active::Phase 5 complete, ready for Phase 6 Integration
 
-## Session 2026-01-29 - Phase 4 COMPLETE ✓
+## Session 2026-01-29 - Phase 5 COMPLETE ✓
 
-### Completed Work - Phase 4 Signal Emulation
+### Completed Work - Phase 5 Terminal Integration
 
-1. **signal-win32.h** - Signal emulation interface:
-   - `signal_init()` / `signal_shutdown()` - Initialize/cleanup
-   - `signal_register()` / `signal_unregister()` - Handler registration
-   - `signal_kill()` - Send signal to process
-   - `signal_watch_child()` / `signal_unwatch_child()` - SIGCHLD emulation
-   - `signal_get_console_size()` - Console size for SIGWINCH
-   - `signal_enable_winch()` / `signal_disable_winch()` - Window resize
+1. **tty-win32.h** - Windows terminal interface:
+   - `tty_win32_init()` / `tty_win32_shutdown()` - Lifecycle
+   - `tty_win32_get_size()` - Console size query
+   - `tty_win32_set_raw()` / `tty_win32_restore()` - Mode control
+   - `tty_win32_isatty()` - TTY detection
+   - `tty_win32_termios_to_*_mode()` - Termios conversion
 
-2. **signal-win32.c** (450+ lines) - Full signal emulation:
-   - `SetConsoleCtrlHandler()` for CTRL+C/BREAK/CLOSE events
-   - Thread-based child process monitoring for SIGCHLD
-   - Console size polling for SIGWINCH
-   - `sigaction()` implementation
-   - `kill()` implementation with TerminateProcess fallback
+2. **tty-win32.c** (350+ lines) - Full terminal implementation:
+   - Virtual Terminal processing (ANSI escape sequences)
+   - Get/SetConsoleMode for raw/cooked modes
+   - Real `tcgetattr_win32()` / `tcsetattr_win32()` implementations
+   - Console handle management
 
-3. **compat-win32.h** - Updated signal definitions:
-   - Added SIGKILL, NSIG definitions
-   - Added signal_handler_t typedef
-   - Changed sigaction/kill from inline stubs to extern declarations
+3. **termios.h** - Updated to use real implementations:
+   - `#define tcgetattr tcgetattr_win32`
+   - `#define tcsetattr tcsetattr_win32`
+   - Removed inline stub functions
 
-### Signal Mapping
-| POSIX Signal | Windows Implementation |
-|--------------|------------------------|
-| SIGINT | CTRL_C_EVENT |
-| SIGTERM | CTRL_BREAK_EVENT / TerminateProcess |
-| SIGHUP | CTRL_CLOSE_EVENT |
-| SIGCHLD | Thread monitoring + WaitForSingleObject |
-| SIGWINCH | Console size polling |
-| SIGKILL | TerminateProcess |
+4. **CMakeLists.txt** - Added tty-win32.c to build
+
+### Key Features
+- ENABLE_VIRTUAL_TERMINAL_PROCESSING for ANSI sequences
+- ENABLE_VIRTUAL_TERMINAL_INPUT for input handling
+- Termios flag to console mode conversion
+- Console mode save/restore
 
 ### Build Status
-- ✓ All files compile
+- ✓ All 152 files compile
 - ✓ tmux.exe links successfully
-- ⚠ Minor type coercion warnings (existing)
 
-### Next: Phase 5 - Terminal Integration
-- tty.c: Console API integration
-- termios emulation for Windows console modes
+### Next: Phase 6 - Full Integration Testing
+- Test tmux new-session
+- Test pane splitting
+- Test detach/attach
+- Fix runtime issues
