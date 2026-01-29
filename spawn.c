@@ -26,6 +26,10 @@
 
 #include "tmux.h"
 
+#ifdef _WIN32
+#include "pty-win32.h"
+#endif
+
 /*
  * Set up the environment and create a new window and pane or a new pane.
  *
@@ -379,6 +383,74 @@ spawn_pane(struct spawn_context *sc, char **cause)
 	}
 
 	/* Fork the new process. */
+#ifdef _WIN32
+	/*
+	 * Windows: Use ConPTY instead of fork+forkpty.
+	 * Create pseudo-console, spawn process, and go directly to complete.
+	 */
+	{
+		pty_handle_t *pty;
+		char *cmdline;
+		char **envp;
+
+		/* Create ConPTY with window size */
+		pty = pty_create(ws.ws_col, ws.ws_row);
+		if (pty == NULL) {
+			xasprintf(cause, "pty_create failed");
+			new_wp->fd = -1;
+			if (~sc->flags & SPAWN_RESPAWN) {
+				server_client_remove_pane(new_wp);
+				layout_close_pane(new_wp);
+				window_remove_pane(w, new_wp);
+			}
+			sigprocmask(SIG_SETMASK, &oldset, NULL);
+			environ_free(child);
+			return (NULL);
+		}
+
+		/* Build command line */
+		if (new_wp->argc != 0 && new_wp->argv != NULL)
+			cmdline = new_wp->argv[0];
+		else
+			cmdline = new_wp->shell;
+
+		/* Convert environ to array for spawn */
+		envp = environ_for_spawn(child);
+
+		/* Spawn process in ConPTY */
+		new_wp->pid = pty_spawn(pty, cmdline, NULL, envp);
+		free(envp);
+
+		if (new_wp->pid == -1) {
+			xasprintf(cause, "pty_spawn failed");
+			pty_destroy(pty);
+			new_wp->fd = -1;
+			if (~sc->flags & SPAWN_RESPAWN) {
+				server_client_remove_pane(new_wp);
+				layout_close_pane(new_wp);
+				window_remove_pane(w, new_wp);
+			}
+			sigprocmask(SIG_SETMASK, &oldset, NULL);
+			environ_free(child);
+			return (NULL);
+		}
+
+		/* Set up window pane with ConPTY fd */
+		new_wp->fd = pty_get_fd(pty);
+		strlcpy(new_wp->tty, "ConPTY", sizeof(new_wp->tty));
+
+		/* Store pty handle for later cleanup - TODO: add to window_pane struct */
+
+		/* Change directory back if needed */
+		if (actual_cwd != NULL &&
+		    chdir(path) != 0 &&
+		    (home == NULL || chdir(home) != 0))
+			chdir("/");
+
+		/* Go directly to complete - no child process in our space */
+		goto complete;
+	}
+#else
 	new_wp->pid = fdforkpty(ptm_fd, &new_wp->fd, new_wp->tty, NULL, &ws);
 	if (new_wp->pid == -1) {
 		xasprintf(cause, "fork failed: %s", strerror(errno));
@@ -404,6 +476,7 @@ spawn_pane(struct spawn_context *sc, char **cause)
 			chdir("/");
 		goto complete;
 	}
+#endif
 
 #if defined(HAVE_SYSTEMD) && defined(ENABLE_CGROUPS)
 	/*

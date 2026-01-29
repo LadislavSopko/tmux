@@ -2514,6 +2514,9 @@ void	environ_update(struct options *, struct environ *, struct environ *);
 void	environ_push(struct environ *);
 void printflike(2, 3) environ_log(struct environ *, const char *, ...);
 struct environ *environ_for_session(struct session *, int);
+#ifdef _WIN32
+char	**environ_for_spawn(struct environ *);
+#endif
 
 /* tty.c */
 void	tty_create_log(void);

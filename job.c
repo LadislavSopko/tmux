@@ -29,6 +29,10 @@
 
 #include "tmux.h"
 
+#ifdef _WIN32
+#include "pty-win32.h"
+#endif
+
 /*
  * Job scheduling. Run queued commands in the background and record their
  * output.
@@ -109,6 +113,132 @@ job_run(const char *cmd, int argc, char **argv, struct environ *e,
 	sigfillset(&set);
 	sigprocmask(SIG_BLOCK, &set, &oldset);
 
+#ifdef _WIN32
+	/*
+	 * Windows: Use ConPTY for PTY jobs, CreateProcess for non-PTY jobs.
+	 * No fork() available - spawn process directly and skip child path.
+	 */
+	if (cmd == NULL) {
+		cmd_log_argv(argc, argv, "%s:", __func__);
+		log_debug("%s: cwd=%s, shell=%s", __func__,
+		    cwd == NULL ? "" : cwd, shell);
+	} else {
+		log_debug("%s: cmd=%s, cwd=%s, shell=%s", __func__, cmd,
+		    cwd == NULL ? "" : cwd, shell);
+	}
+
+	if (flags & JOB_PTY) {
+		/* PTY job: use ConPTY */
+		pty_handle_t *pty;
+		char *cmdline;
+		char **envp;
+
+		/* Create ConPTY */
+		pty = pty_create(sx, sy);
+		if (pty == NULL)
+			goto fail;
+
+		/* Build command line */
+		if (cmd != NULL) {
+			xasprintf(&cmdline, "%s -c \"%s\"", shell, cmd);
+		} else if (argc > 0 && argv != NULL) {
+			cmdline = xstrdup(argv[0]);
+		} else {
+			cmdline = xstrdup(shell);
+		}
+
+		/* Convert environ to array */
+		envp = environ_for_spawn(env);
+
+		/* Spawn process */
+		pid = pty_spawn(pty, cmdline, NULL, envp);
+		free(cmdline);
+		free(envp);
+
+		if (pid == -1) {
+			pty_destroy(pty);
+			goto fail;
+		}
+
+		master = pty_get_fd(pty);
+		strlcpy(tty, "ConPTY", sizeof(tty));
+	} else {
+		/* Non-PTY job: use CreateProcess with pipes */
+		SECURITY_ATTRIBUTES sa = {0};
+		HANDLE hReadPipe, hWritePipe;
+		STARTUPINFOW si;
+		PROCESS_INFORMATION pi;
+		wchar_t wcmdline[32768];
+		char *cmdline;
+		char **envp;
+		wchar_t *wenvblock = NULL;
+		size_t total;
+		char **ep;
+		wchar_t *wp;
+
+		sa.nLength = sizeof(sa);
+		sa.bInheritHandle = TRUE;
+
+		/* Create pipe for stdout */
+		if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0))
+			goto fail;
+
+		/* Convert command to wide string */
+		if (cmd != NULL) {
+			xasprintf(&cmdline, "%s -c \"%s\"", shell, cmd);
+		} else if (argc > 0 && argv != NULL) {
+			cmdline = xstrdup(argv[0]);
+		} else {
+			cmdline = xstrdup(shell);
+		}
+		MultiByteToWideChar(CP_UTF8, 0, cmdline, -1, wcmdline, 32768);
+		free(cmdline);
+
+		/* Build environment block */
+		envp = environ_for_spawn(env);
+		total = 0;
+		for (ep = envp; *ep != NULL; ep++)
+			total += MultiByteToWideChar(CP_UTF8, 0, *ep, -1, NULL, 0);
+		total++;
+		wenvblock = xcalloc(total, sizeof(wchar_t));
+		wp = wenvblock;
+		for (ep = envp; *ep != NULL; ep++) {
+			int len = MultiByteToWideChar(CP_UTF8, 0, *ep, -1, wp, (int)(total - (wp - wenvblock)));
+			wp += len;
+		}
+		*wp = L'\0';
+		free(envp);
+
+		/* Set up startup info */
+		ZeroMemory(&si, sizeof(si));
+		si.cb = sizeof(si);
+		si.dwFlags = STARTF_USESTDHANDLES;
+		si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+		si.hStdOutput = hWritePipe;
+		si.hStdError = (flags & JOB_SHOWSTDERR) ? hWritePipe : GetStdHandle(STD_ERROR_HANDLE);
+		ZeroMemory(&pi, sizeof(pi));
+
+		/* Create process */
+		if (!CreateProcessW(NULL, wcmdline, NULL, NULL, TRUE,
+		    CREATE_UNICODE_ENVIRONMENT, wenvblock, NULL, &si, &pi)) {
+			free(wenvblock);
+			CloseHandle(hReadPipe);
+			CloseHandle(hWritePipe);
+			goto fail;
+		}
+		free(wenvblock);
+
+		CloseHandle(hWritePipe);  /* Close write end in parent */
+		CloseHandle(pi.hThread);
+
+		pid = (pid_t)pi.dwProcessId;
+		out[0] = _open_osfhandle((intptr_t)hReadPipe, O_RDONLY);
+		out[1] = -1;  /* Already closed */
+		master = out[0];
+		strlcpy(tty, "", sizeof(tty));
+	}
+	/* Windows: skip to parent path - no child process in our space */
+#else
 	if (flags & JOB_PTY) {
 		memset(&ws, 0, sizeof ws);
 		ws.ws_col = sx;
@@ -190,6 +320,7 @@ job_run(const char *cmd, int argc, char **argv, struct environ *e,
 			fatal("execvp failed");
 		}
 	}
+#endif
 
 	sigprocmask(SIG_SETMASK, &oldset, NULL);
 	environ_free(env);

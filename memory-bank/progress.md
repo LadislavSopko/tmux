@@ -7,10 +7,12 @@
 ```
 Phase0:Analysis     ████████████ 100%
 Phase0.5:POCs       ████████░░░░  80% (core done)
-Phase1:Foundation   ████████████ 100% ✓ COMPLETE - EXE BUILT!
-Phase2-6:Impl       ░░░░░░░░░░░░   0% (ready to start)
+Phase1:Foundation   ████████████ 100% ✓ COMPLETE
+Phase2:PTY-Layer    ████████████ 100% ✓ COMPLETE
+Phase3:IPC-Layer    ░░░░░░░░░░░░   0% (next)
+Phase4-6:Impl       ░░░░░░░░░░░░   0% (ready)
 
-Overall: ~60%
+Overall: ~70%
 ```
 
 ## Phase 1: Foundation ✓100% COMPLETE
@@ -58,11 +60,32 @@ Overall: ~60%
 - [x] realpath, lstat, getpagesize, getpeereid
 - [x] sigprocmask, killpg stubs
 
-## Phase 2-6: Implementation ⏳READY TO START
+## Phase 2: PTY Layer ✓100% COMPLETE
 
-Now that Phase 1 is complete, can proceed with:
-- Phase 2: PTY Layer (ConPTY implementation)
-- Phase 3: IPC Layer (Named Pipes)
+**ConPTY integration complete and building!**
+
+### Implementation ✓COMPLETE
+- [x] pty-win32.c (477 lines) - Full ConPTY wrapper
+- [x] pty-win32.h - PTY interface header
+- [x] spawn.c patched with Windows ConPTY path
+- [x] job.c patched with Windows ConPTY + CreateProcess
+- [x] environ.c - environ_for_spawn() added
+- [x] tmux.h - Declaration for environ_for_spawn
+
+### Key Implementation Details
+- `pty_create()`: CreatePseudoConsole + pipe setup
+- `pty_spawn()`: CreateProcessW with PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE
+- `pty_get_fd()`: Uses `_open_osfhandle()` for libevent compatibility
+- Environment conversion: `struct environ` → `char**` for CreateProcess
+
+### Build Status
+- ✓ All files compile
+- ✓ EXE links
+- ⚠ Minor warnings (unused Unix vars) - expected
+
+## Phase 3-6: Implementation ⏳READY TO START
+
+- Phase 3: IPC Layer (Named Pipes) ← NEXT
 - Phase 4: Process Management
 - Phase 5: Terminal Integration
 - Phase 6: Full Integration

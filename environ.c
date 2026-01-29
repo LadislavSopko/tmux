@@ -292,3 +292,42 @@ environ_for_session(struct session *s, int no_TERM)
 
 	return (env);
 }
+
+#ifdef _WIN32
+/*
+ * Convert environ to a NULL-terminated array of "KEY=VALUE" strings
+ * suitable for CreateProcess/spawn. Caller must free the returned array.
+ */
+char **
+environ_for_spawn(struct environ *env)
+{
+	struct environ_entry	*envent;
+	char			**result;
+	size_t			 count = 0;
+	size_t			 i = 0;
+
+	/* Count entries */
+	RB_FOREACH(envent, environ, env) {
+		if (envent->value != NULL &&
+		    *envent->name != '\0' &&
+		    (~envent->flags & ENVIRON_HIDDEN))
+			count++;
+	}
+
+	/* Allocate array (+1 for NULL terminator) */
+	result = xcalloc(count + 1, sizeof(*result));
+
+	/* Fill array */
+	RB_FOREACH(envent, environ, env) {
+		if (envent->value != NULL &&
+		    *envent->name != '\0' &&
+		    (~envent->flags & ENVIRON_HIDDEN)) {
+			xasprintf(&result[i], "%s=%s", envent->name, envent->value);
+			i++;
+		}
+	}
+	result[i] = NULL;
+
+	return (result);
+}
+#endif
