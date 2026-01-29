@@ -22,3 +22,7 @@ fuzz/*-fuzzer
 tags
 tmux
 tmux.1.*
+.claude
+.cvm
+.vs
+build/
