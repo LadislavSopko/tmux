@@ -35,6 +35,10 @@
 
 #include "tmux.h"
 
+#ifdef _WIN32
+#include "ipc-win32.h"
+#endif
+
 /*
  * Main server functions.
  */
@@ -106,6 +110,18 @@ server_check_marked(void)
 int
 server_create_socket(uint64_t flags, char **cause)
 {
+#ifdef _WIN32
+	int	fd;
+
+	(void)flags;  /* TODO: handle access control flags */
+
+	fd = ipc_server_create(socket_path, cause);
+	if (fd == -1)
+		return (-1);
+
+	setblocking(fd, 0);
+	return (fd);
+#else
 	struct sockaddr_un	sa;
 	size_t			size;
 	mode_t			mask;
@@ -151,6 +167,7 @@ fail:
 		    strerror(errno));
 	}
 	return (-1);
+#endif
 }
 
 /* Tidy up every hour. */
@@ -368,6 +385,32 @@ server_update_socket(void)
 static void
 server_accept(int fd, short events, __unused void *data)
 {
+#ifdef _WIN32
+	int		 newfd;
+	struct client	*c;
+
+	server_add_accept(0);
+	if (!(events & EV_READ))
+		return;
+
+	newfd = ipc_server_accept(fd);
+	if (newfd == -1) {
+		if (errno == EAGAIN || errno == EINTR || errno == ECONNABORTED)
+			return;
+		log_debug("%s: ipc_server_accept failed: %s", __func__, strerror(errno));
+		return;
+	}
+
+	if (server_exit) {
+		ipc_close(newfd);
+		return;
+	}
+	c = server_client_create(newfd);
+	if (!server_acl_join(c)) {
+		c->exit_message = xstrdup("access not allowed");
+		c->flags |= CLIENT_EXIT;
+	}
+#else
 	struct sockaddr_storage	 sa;
 	socklen_t		 slen = sizeof sa;
 	int			 newfd;
@@ -398,6 +441,7 @@ server_accept(int fd, short events, __unused void *data)
 		c->exit_message = xstrdup("access not allowed");
 		c->flags |= CLIENT_EXIT;
 	}
+#endif
 }
 
 /*

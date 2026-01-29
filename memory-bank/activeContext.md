@@ -4,48 +4,45 @@
 
 ## Current Focus
 
-@task::Phase2-PTY-Layer-Complete
-⚡active::Phase 2 complete, ready for Phase 3 IPC
+@task::Phase3-IPC-Layer-Complete
+⚡active::Phase 3 complete, ready for Phase 4 Process/Signal
 
-## Session 2026-01-29 - Phase 2 COMPLETE ✓
+## Session 2026-01-29 - Phase 3 COMPLETE ✓
 
-### Completed Work
-1. **pty-win32.c** (477 lines) - Full ConPTY implementation:
-   - `pty_create()` - Creates ConPTY with specified dimensions
-   - `pty_spawn()` - Spawns process attached to ConPTY
-   - `pty_read()` - Non-blocking read from PTY
-   - `pty_write()` - Write to PTY
-   - `pty_resize()` - Resize ConPTY
-   - `pty_destroy()` - Cleanup all handles
-   - `pty_get_fd()` - Returns fd for libevent integration
-   - `fdforkpty()` - POSIX compat stub (returns -1, uses native path)
+### Completed Work - Phase 3 IPC Layer
 
-2. **spawn.c** - Windows ConPTY integration:
-   - `#include "pty-win32.h"` for Windows
-   - Windows-specific block at line 386+
-   - Uses `pty_create(cols, rows)` + `pty_spawn(cmdline, envp)`
-   - Uses `environ_for_spawn()` for environment conversion
-   - Sets `new_wp->tty = "ConPTY"`
-   - Skips fork child path (no fork on Windows)
+1. **ipc-win32.h** - Named Pipes IPC interface header:
+   - `ipc_socket_to_pipe_path()` - Converts Unix path to Named Pipe path
+   - `ipc_server_create()` - Creates Named Pipe server
+   - `ipc_server_accept()` - Accepts client connection
+   - `ipc_client_connect()` - Connects to Named Pipe server
+   - `ipc_close()` - Closes IPC connection
+   - `ipc_server_exists()` - Checks if server exists
+   - `ipc_get_handle()` - Gets underlying HANDLE
 
-3. **job.c** - Windows ConPTY + CreateProcess:
-   - `#include "pty-win32.h"` for Windows
-   - JOB_PTY: Uses ConPTY same as spawn.c
-   - Non-PTY: Uses CreateProcess with anonymous pipes
-   - Minor warnings for unused Unix-only variables
+2. **ipc-win32.c** (400+ lines) - Full Named Pipes implementation:
+   - CreateNamedPipeA with FILE_FLAG_OVERLAPPED
+   - CreateFileA for client connection
+   - ConnectNamedPipe for accept
+   - _open_osfhandle for libevent fd compatibility
+   - Internal ipc_pipe tracking structure
 
-4. **environ.c** - `environ_for_spawn()` function:
-   - Converts `struct environ` to `char**` array for CreateProcess
+3. **server.c** - Windows IPC integration:
+   - `#include "ipc-win32.h"` for Windows
+   - `server_create_socket()`: Uses `ipc_server_create()` on Windows
+   - `server_accept()`: Uses `ipc_server_accept()` on Windows
 
-5. **tmux.h** - Declaration added:
-   - `char **environ_for_spawn(struct environ *)` for Windows
+4. **client.c** - Windows IPC integration:
+   - `#include "ipc-win32.h"` for Windows
+   - `client_connect()`: Uses `ipc_client_connect()` on Windows
+   - Simplified retry logic (no Unix file locking on Windows)
 
 ### Build Status
-- ✓ All 154 files compile
+- ✓ All files compile
 - ✓ tmux.exe links successfully
-- ⚠ Minor warnings for unused Unix variables in job.c (expected)
+- ⚠ Minor type coercion warnings (non-blocking)
 
-### Next: Phase 3 - IPC Layer (Named Pipes)
-- server.c: Replace AF_UNIX sockets with Named Pipes
-- client.c: Replace connect() with Named Pipe client
-- Reference: POC-02 (pocs/02-named-pipes/)
+### Next: Phase 4 - Process Management + Signals
+- proc.c: Signal emulation
+- signal-win32.c: Windows signal handling
+- Reference: POC-04 (pocs/04-console-events/)

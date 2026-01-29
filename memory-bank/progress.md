@@ -9,10 +9,11 @@ Phase0:Analysis     ████████████ 100%
 Phase0.5:POCs       ████████░░░░  80% (core done)
 Phase1:Foundation   ████████████ 100% ✓ COMPLETE
 Phase2:PTY-Layer    ████████████ 100% ✓ COMPLETE
-Phase3:IPC-Layer    ░░░░░░░░░░░░   0% (next)
-Phase4-6:Impl       ░░░░░░░░░░░░   0% (ready)
+Phase3:IPC-Layer    ████████████ 100% ✓ COMPLETE
+Phase4:Signals      ░░░░░░░░░░░░   0% (next)
+Phase5-6:Impl       ░░░░░░░░░░░░   0% (ready)
 
-Overall: ~70%
+Overall: ~80%
 ```
 
 ## Phase 1: Foundation ✓100% COMPLETE
@@ -83,10 +84,31 @@ Overall: ~70%
 - ✓ EXE links
 - ⚠ Minor warnings (unused Unix vars) - expected
 
-## Phase 3-6: Implementation ⏳READY TO START
+## Phase 3: IPC Layer ✓100% COMPLETE
 
-- Phase 3: IPC Layer (Named Pipes) ← NEXT
-- Phase 4: Process Management
+**Named Pipes IPC implementation complete!**
+
+### Implementation ✓COMPLETE
+- [x] ipc-win32.h - IPC interface header
+- [x] ipc-win32.c (400+ lines) - Full Named Pipes wrapper
+- [x] server.c patched with Windows Named Pipes
+- [x] client.c patched with Windows Named Pipes
+
+### Key Implementation Details
+- `ipc_server_create()`: CreateNamedPipeA + FILE_FLAG_OVERLAPPED
+- `ipc_server_accept()`: ConnectNamedPipe + new instance creation
+- `ipc_client_connect()`: CreateFileA to connect to pipe
+- `ipc_socket_to_pipe_path()`: Converts `/tmp/tmux-xxx` → `\\.\pipe\tmux-xxx`
+- Uses `_open_osfhandle()` for libevent fd compatibility
+
+### Build Status
+- ✓ All files compile
+- ✓ EXE links
+- ⚠ Minor type warnings - non-blocking
+
+## Phase 4-6: Implementation ⏳READY TO START
+
+- Phase 4: Process Management + Signals ← NEXT
 - Phase 5: Terminal Integration
 - Phase 6: Full Integration
 

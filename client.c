@@ -36,6 +36,7 @@
 /* On Windows, the global environment is _environ */
 #define global_environ _environ
 extern char **_environ;
+#include "ipc-win32.h"
 #else
 #define global_environ environ
 extern char **environ;
@@ -113,6 +114,52 @@ client_get_lock(char *lockfile)
 static int
 client_connect(struct event_base *base, const char *path, uint64_t flags)
 {
+#ifdef _WIN32
+	int	fd;
+	int	retry_count = 0;
+
+	log_debug("socket is %s", path);
+
+retry:
+	log_debug("trying connect (attempt %d)", retry_count + 1);
+	fd = ipc_client_connect(path);
+
+	if (fd == -1) {
+		log_debug("connect failed: %s", strerror(errno));
+
+		if (errno != ECONNREFUSED && errno != EAGAIN)
+			return (-1);
+		if (flags & CLIENT_NOSTARTSERVER)
+			return (-1);
+		if (~flags & CLIENT_STARTSERVER)
+			return (-1);
+
+		/* Server not running, try to start it */
+		if (retry_count == 0) {
+			retry_count++;
+			/*
+			 * On Windows, we start the server directly.
+			 * The server_start function handles creating the pipe.
+			 */
+			fd = server_start(client_proc, flags, base, -1, NULL);
+			if (fd == -1) {
+				/* Server start failed, try connect once more */
+				Sleep(100);  /* Give server time to start */
+				goto retry;
+			}
+		} else if (retry_count < 5) {
+			/* Retry a few times with backoff */
+			retry_count++;
+			Sleep(100 * retry_count);
+			goto retry;
+		} else {
+			return (-1);
+		}
+	}
+
+	setblocking(fd, 0);
+	return (fd);
+#else
 	struct sockaddr_un	sa;
 	size_t			size;
 	int			fd, lockfd = -1, locked = 0;
@@ -187,6 +234,7 @@ failed:
 	}
 	close(fd);
 	return (-1);
+#endif
 }
 
 /* Get exit string from reason number. */
