@@ -8,167 +8,151 @@
 @branch::master
 @language::C{87%}
 
-## Current Dependencies
+## Project Structure
 
-[Unix]
-libevent::EventLoop{async-io}→✓Windows-supported!
-ncurses::TerminalUI→PDCurses{drop-in-replacement}
-POSIX-PTY::PseudoTerminal→ConPTY
-fork()::ProcessCreation→CreateProcess()
-Unix-sockets::IPC→NamedPipes
-POSIX-signals::Events→Windows-events
+```
+tmux/                        # Root
+├── *.c, *.h                 # Original tmux sources (~142 files)
+├── compat/                  # POSIX compat implementations
+├── pocs/                    # Windows API proof-of-concepts ✓VALIDATED
+│   ├── 01-conpty/          # ConPTY test ✓WORKS
+│   ├── 02-named-pipes/     # IPC test ✓WORKS
+│   ├── 03-process/         # Process test ✓5/5
+│   ├── 04-console-events/  # Signal test ~COMPILES
+│   ├── 05-pdcurses/        # Curses test -SKIPPED
+│   └── 06-libevent-win/    # Event loop -SKIPPED
+├── windows/                 # Windows port (NEW)
+│   ├── CMakeLists.txt      # Build system
+│   ├── build.bat           # Build script
+│   ├── docs/               # Documentation
+│   ├── include/            # Windows headers
+│   ├── src/                # Windows implementations
+│   └── tests/              # Unit tests (TDD)
+└── memory-bank/            # Project state
+```
 
-## Windows Target
+## Dependencies
 
-[Requirements]
+[Required]
+libevent::EventLoop{✓Windows-supported}
+PDCurses::TerminalUI{ncurses-replacement}
+
+[Windows SDK]
 Windows10+{build-1809+}
 ConPTY-API::Required
-MSVC|MinGW::Compiler
+MSVC2019+|MinGW-w64::Compiler
 
-[Win32-APIs]
-```c
-// PTY
-#include <windows.h>
-#include <consoleapi.h>
-CreatePseudoConsole()
-ResizePseudoConsole()
-ClosePseudoConsole()
+[Link Libraries]
+kernel32.lib::Process,file,console
+advapi32.lib::Security,registry
+user32.lib::Window-messages
+ws2_32.lib::Winsock{optional}
 
-// IPC
-CreateNamedPipe()
-ConnectNamedPipe()
-CreateFile(){pipe}
+## POSIX→Windows Mapping
 
-// Process
-CreateProcess()
-WaitForSingleObject()
-TerminateProcess()
+| POSIX | Windows | Validated |
+|-------|---------|-----------|
+| forkpty() | CreatePseudoConsole() | ✓POC-01 |
+| socket(AF_UNIX) | CreateNamedPipe() | ✓POC-02 |
+| fork+exec | CreateProcess() | ✓POC-03 |
+| waitpid | WaitForSingleObject() | ✓POC-03 |
+| kill | TerminateProcess() | ✓POC-03 |
+| signal/sigaction | SetConsoleCtrlHandler() | ~POC-04 |
+| termios | Console API | ?TODO |
 
-// Events
-SetConsoleCtrlHandler()
-CreateEvent()
+## Build Commands
+
+[Windows Port - PRIMARY]
+```batch
+cd D:\Projekty\AI_Works\tmux\windows
+build.bat
+:: Output: windows/build/bin/*.exe
+:: Runs: cmake configure + build + ctest
 ```
 
-## Build System
-
-[Current::autotools]
-configure.ac
-Makefile.am
-autogen.sh
-
-[Target::CMake]
-?CMakeLists.txt→CREATE
-→Cross-platform
-→MSVC+MinGW+GCC
-
-## Key Build Defines
-
-```c
-#ifdef _WIN32
-  // Windows-specific code
-#else
-  // POSIX code
-#endif
-
-#ifdef HAVE_FORKPTY
-#ifdef HAVE_FDFORKPTY
-#ifdef HAVE_SYSTEMD
+[POCs - Reference]
+```batch
+cd D:\Projekty\AI_Works\tmux\pocs
+build.bat
+:: Output: pocs/build/bin/*.exe
 ```
 
-## File Structure
+[Manual Build]
+```batch
+:: Load VS environment
+call "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars64.bat"
 
-[Root~100files]
-tmux.c::main-entry
-tmux.h::main-header{114KB}
-compat.h::compat-declarations
+:: Configure + Build
+cmake -B build -G Ninja
+cmake --build build
 
-[Commands~60files]
-cmd-*.c::tmux-commands{¬modify}
-
-[Core~30files]
-server.c::server-main
-client.c::client-main
-spawn.c::process-spawn
-job.c::background-jobs
-proc.c::process-lifecycle
-
-[Terminal~15files]
-tty.c::terminal-output
-tty-*.c::terminal-features
-input.c::input-parsing
-
-[compat/~50files]
-forkpty-*.c::pty-implementations
-daemon.c::daemonization
-Various-POSIX-compat
-
-[osdep/]
-osdep-*.c::OS-specific{get_name,get_cwd,event_init}
-
-## Dependencies to Add (Windows)
-
-[Libraries]
-pdcurses::ncurses-replacement
-libevent::already-supports-windows
-
-[Link]
-kernel32.lib
-user32.lib
-advapi32.lib
-ws2_32.lib{maybe}
-
-## Development Commands
-
-[Current-Unix]
-```bash
-./autogen.sh
-./configure
-make
-make install
-```
-
-[Target-Windows]
-```bash
-mkdir build && cd build
-cmake .. -G "Visual Studio 17 2022"
-cmake --build . --config Release
+:: Run tests
+ctest --test-dir build --output-on-failure
 ```
 
 ## Test Commands
 
-[BasicTest]
-```bash
-# Create session
-tmux new-session -d -s test
-
-# List
-tmux list-sessions
-
-# Panes
-tmux split-window -h
-tmux split-window -v
-
-# Interact
-tmux send-keys "echo hello" Enter
-
-# Detach/Attach
-# Ctrl+B, D
-tmux attach -t test
-
-# Kill
-tmux kill-session -t test
+[Run All Tests]
+```batch
+cd windows
+build.bat
+:: Automatically runs ctest
 ```
+
+[Run Single Test]
+```batch
+cd windows/build/bin
+test_pty.exe
+test_ipc.exe
+test_proc.exe
+test_signal.exe
+```
+
+## Development Workflow
+
+[TDD Cycle]
+1. Write test in tests/test_*.c (RED)
+2. Implement in src/*-win32.c (GREEN)
+3. Refactor if needed
+4. Commit
+
+[File Locations]
+| Cosa | Path |
+|------|------|
+| Piano | windows/docs/PORTING-PLAN.md |
+| Regole | windows/docs/OPERATIONAL-RULES.md |
+| TDD | windows/docs/TDD-STRATEGY.md |
+| Source | windows/src/*.c |
+| Tests | windows/tests/*.c |
+| Headers | windows/include/*.h |
+
+## Key tmux Files Analysis
+
+[Critical - 12 files, heavy POSIX]
+spawn.c{509}→fdforkpty,fork,exec
+job.c{450}→fork,forkpty,socketpair
+server.c{559}→socket,bind,listen,accept
+client.c{809}→socket,connect,flock
+proc.c{386}→sigaction,sigprocmask
+server-client.c{4034}→imsg,signals
+tty.c{3030}→ioctl,termios
+control.c{1117}→imsg
+control-notify.c{262}→imsg
+file.c{868}→imsg
+tmux.c{540}→getpwuid,signal
+server-acl.c{186}→getuid,getgid
+
+[Core - 90+ files, no changes needed]
+cmd-*.c, format.c, grid.c, layout.c, screen.c, etc.
 
 ## Resources
 
 [ConPTY]
 docs.microsoft.com/windows/console/creating-a-pseudoconsole-session
-github.com/microsoft/terminal{reference}
 github.com/microsoft/terminal/tree/main/samples/ConPTY
 
 [NamedPipes]
 docs.microsoft.com/windows/win32/ipc/named-pipe-server-using-overlapped-i-o
 
 [PDCurses]
-github.com/wmcbrine/PDCurses
-github.com/Bill-Gray/PDCursesMod{more-active}
+github.com/Bill-Gray/PDCursesMod{recommended}

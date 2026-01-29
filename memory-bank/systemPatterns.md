@@ -8,13 +8,14 @@
 ┌─────────────────────────────────────────────────────┐
 │                    tmux core                         │
 │         (business logic - DO NOT MODIFY)             │
+│         ~90 files: cmd-*.c, format.c, grid.c        │
 └──────────────────────┬──────────────────────────────┘
                        │
         ┌──────────────┼──────────────────┐
         ▼              ▼                  ▼
 ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│  compat/     │ │  compat/     │ │  compat/     │
-│  pty-win32   │ │  ipc-win32   │ │  proc-win32  │
+│ windows/src/ │ │ windows/src/ │ │ windows/src/ │
+│ pty-win32.c  │ │ ipc-win32.c  │ │ proc-win32.c │
 └──────────────┘ └──────────────┘ └──────────────┘
 ```
 
@@ -25,9 +26,43 @@
 @implement::Platform-specific{#ifdef _WIN32}
 →Core¬KnowsAboutPlatform
 
+## Development Methodology
+
+[TDD - Test Driven Development]
+@principle::TestFirst→ImplementAfter
+@reference::POCs-are-acceptance-tests
+→RED::WriteFailingTest
+→GREEN::ImplementToPass
+→REFACTOR::CleanUp
+
+## Windows Port Structure
+
+```
+windows/
+├── CMakeLists.txt           # Build system
+├── build.bat                # Build + test script
+├── docs/
+│   ├── PORTING-PLAN.md      # Master plan with checkboxes
+│   ├── TDD-STRATEGY.md      # Test strategy
+│   └── OPERATIONAL-RULES.md # Workflow rules
+├── include/
+│   └── compat-win32.h       # Windows compatibility header
+├── src/
+│   ├── osdep-win32.c        # OS-dependent (3 functions)
+│   ├── pty-win32.c          # ConPTY wrapper [TODO]
+│   ├── ipc-win32.c          # Named Pipes [TODO]
+│   ├── proc-win32.c         # Process management [TODO]
+│   └── signal-win32.c       # Signal emulation [TODO]
+└── tests/
+    ├── test_pty.c           # PTY tests [TODO]
+    ├── test_ipc.c           # IPC tests [TODO]
+    ├── test_proc.c          # Process tests [TODO]
+    └── test_signal.c        # Signal tests [TODO]
+```
+
 ## Layer 1: PTY Abstraction
 
-[Interface::compat/pty.h]
+[Interface::windows/src/pty-win32.h]
 ```c
 pty_handle_t* pty_create(cols, rows)
 pid_t pty_spawn(pty, cmd, argv, env)
@@ -37,20 +72,17 @@ ssize_t pty_write(pty, buf, len)
 void pty_destroy(pty)
 ```
 
-[POSIX::forkpty()]
-spawn.c:382→fdforkpty()→forkpty()
-/dev/ptmx→grantpt→unlockpt→ptsname→fork→dup2
+[POSIX→Windows Mapping]
+forkpty()→CreatePseudoConsole()
+/dev/ptmx→HPCON handle
+fork+dup2→CreateProcess+STARTUPINFOEX
 
-[Windows::ConPTY]
-CreatePseudoConsole()→HPCON
-CreateProcess()→STARTUPINFOEX{hPC}
-ReadFile/WriteFile{hInput,hOutput}
-ResizePseudoConsole()
-ClosePseudoConsole()
+[POC Reference]
+pocs/01-conpty/→VALIDATED✓
 
 ## Layer 2: IPC Abstraction
 
-[Interface::compat/ipc.h]
+[Interface::windows/src/ipc-win32.h]
 ```c
 ipc_handle_t* ipc_listen(path)
 ipc_handle_t* ipc_connect(path)
@@ -60,20 +92,18 @@ ssize_t ipc_recv(h, buf, len)
 void ipc_close(h)
 ```
 
-[POSIX::UnixSockets]
-server.c:106→server_create_socket()
-AF_UNIX+SOCK_STREAM
-socket→bind→listen→accept
+[POSIX→Windows Mapping]
+socket(AF_UNIX)→CreateNamedPipe()
+bind+listen→implicit in CreateNamedPipe
+accept→ConnectNamedPipe()
+connect→CreateFile(pipe)
 
-[Windows::NamedPipes]
-\\.\pipe\tmux-{username}-{session}
-CreateNamedPipe()→HANDLE
-ConnectNamedPipe()
-CreateFile(){OPEN_EXISTING}
+[POC Reference]
+pocs/02-named-pipes/→VALIDATED✓
 
 ## Layer 3: Process Abstraction
 
-[Interface::compat/proc.h]
+[Interface::windows/src/proc-win32.h]
 ```c
 proc_handle_t* proc_spawn(cmd, argv, env, cwd)
 int proc_wait(h, status, flags)
@@ -81,73 +111,56 @@ int proc_kill(h, signal)
 void proc_close(h)
 ```
 
-[POSIX::fork/exec]
-job.c:120→fork()
-spawn.c:382→fdforkpty()
-execl/execvp
+[POSIX→Windows Mapping]
+fork+exec→CreateProcess()
+waitpid→WaitForSingleObject()
+kill→TerminateProcess()
 
-[Windows::CreateProcess]
-CreateProcess()→PROCESS_INFORMATION
-WaitForSingleObject()
-TerminateProcess()
+[POC Reference]
+pocs/03-process/→VALIDATED✓{5/5-tests}
 
 ## Layer 4: Signal Abstraction
 
-[Interface::compat/signal-win32.h]
+[Interface::windows/src/signal-win32.h]
 ```c
-void signal_init()
-void signal_set_handler(sig, handler)
-void signal_child_watch(callback)
+sighandler_t win32_signal(sig, handler)
+int win32_kill(pid, sig)
+void win32_signal_init()
 ```
 
-[POSIX::Signals]
-server.c:430→server_signal()
-SIGCHLD→waitpid()
-SIGTERM/SIGINT→shutdown
-SIGWINCH→resize
+[POSIX→Windows Mapping]
+signal/sigaction→SetConsoleCtrlHandler()
+SIGCHLD→WaitForSingleObject()+callback
+SIGINT/SIGTERM→CTRL_C_EVENT/CTRL_BREAK_EVENT
+SIGWINCH→GetConsoleScreenBufferInfo() polling
 
-[Windows::Events]
-SetConsoleCtrlHandler()→CTRL_C_EVENT
-WaitForSingleObject()→child exit
-Manual→resize polling
+[POC Reference]
+pocs/04-console-events/→COMPILES~
 
-## Key Files by Layer
+## Key tmux Files to Wrap
 
-[PTY]
-spawn.c→usespty
-job.c→usespty{JOB_PTY flag}
-compat/fdforkpty.c→wrapper
-compat/forkpty-*.c→platform-impl
-?compat/pty-win32.c→CREATE
+[Critical - Heavy POSIX]
+spawn.c:382→fdforkpty()→pty-win32
+job.c:120→fork()→proc-win32
+server.c:106→socket(AF_UNIX)→ipc-win32
+client.c→connect()→ipc-win32
+proc.c→sigaction()→signal-win32
+tty.c→termios→Console API
 
-[IPC]
-server.c→socket-server
-client.c→socket-client
-?compat/ipc-win32.c→CREATE
+[Partial Changes]
+cmd-if-shell.c, cmd-run-shell.c, cmd-pipe-pane.c
+server-fn.c, server-client.c
 
-[Process]
-job.c→fork+exec
-proc.c→process-lifecycle
-?compat/proc-win32.c→CREATE
+[Core - No Changes]
+cmd-*.c (60+ files), format.c, grid.c, layout.c
+screen.c, window.c, options.c, etc.
 
-[Signal]
-server.c→signal-handlers
-tmux.c→signal-setup
-?compat/signal-win32.c→CREATE
+## Parallelization
 
-## Existing Platform Support
-
-[osdep-*.c]
-osdep-linux.c
-osdep-freebsd.c
-osdep-openbsd.c
-osdep-darwin.c
-osdep-cygwin.c→EXISTS!{reference}
-?osdep-win32.c→CREATE
-
-[compat/forkpty-*.c]
-forkpty-sunos.c→reference-impl
-forkpty-aix.c
-forkpty-haiku.c
-forkpty-hpux.c
-?forkpty-win32.c→CREATE
+[4 Independent Layers]
+All depend only on compat-win32.h (DONE)
+Can develop in parallel with TDD:
+→Agent-PTY: pty-win32.c + test_pty.c
+→Agent-IPC: ipc-win32.c + test_ipc.c
+→Agent-PROC: proc-win32.c + test_proc.c
+→Agent-SIGNAL: signal-win32.c + test_signal.c

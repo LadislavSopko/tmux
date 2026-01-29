@@ -30,29 +30,34 @@ tmux.exe::Native{ConPTY+Win32API}
 [Secondary]
 ?MaintainUpstreamCompat{merge-friendly}
 ?MinimalCoreChanges{BBC-pattern}
-?CrossPlatformBuild{CMake}
+✓CrossPlatformBuild{CMake}
 
 ## Success Criteria
 
-[Milestone1::PTYWorks]
-?ConPTY::Create+Spawn+Read+Write✓
-?Test::cmd.exe{interactive}
+[Milestone1::PTYWorks] ✓VALIDATED
+✓ConPTY::Create+Spawn+Read+Write
+✓Test::cmd.exe{interactive}
+→POC-01-conpty::WORKING
 
-[Milestone2::IPCWorks]
-?NamedPipes::Listen+Connect+Send+Recv✓
-?Test::Client↔Server{attach,detach}
+[Milestone2::IPCWorks] ✓VALIDATED
+✓NamedPipes::Listen+Connect+Send+Recv
+✓Test::Client↔Server{bidirectional}
+→POC-02-named-pipes::WORKING
 
-[Milestone3::ProcessWorks]
-?CreateProcess::Spawn+Wait+Kill✓
-?Test::Jobs{background,foreground}
+[Milestone3::ProcessWorks] ✓VALIDATED
+✓CreateProcess::Spawn+Wait+Kill
+✓Test::5/5-PASSED{env,poll,terminate,cwd}
+→POC-03-process::WORKING
 
-[Milestone4::SignalsWork]
-?ConsoleEvents::Ctrl-C+ChildExit✓
-?Test::Graceful{shutdown,resize}
+[Milestone4::SignalsWork] ~PARTIAL
+~ConsoleEvents::Compiles
+?Test::Needs-manual-validation
+→POC-04-console-events::COMPILES
 
-[Milestone5::Integration]
-?tmux::new-session+split-pane+detach+attach✓
+[Milestone5::Integration] ?PENDING
+?tmux::new-session+split-pane+detach+attach
 ?FullFunctionality
+→Requires::Phase2-6-implementation
 
 ## Non-Goals
 

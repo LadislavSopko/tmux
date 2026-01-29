@@ -2,93 +2,124 @@
 
 §MBEL:5.0
 
-## Overall Strategy
+## Overall Progress
 
 ```
-Phase0:Analysis → Phase0.5:POCs → Phase1-6:Implementation
-                       ↑
-                  CORE POCs VALIDATED!
-                  Ready for planning
+Phase0:Analysis     ████████████ 100%
+Phase0.5:POCs       ████████░░░░  80% (core done)
+Phase1:Foundation   ████████░░░░  60% (docs done, deps pending)
+Phase2-6:Impl       ░░░░░░░░░░░░   0% (blocked by Phase1)
+
+Overall: ~35%
 ```
 
-## Phase 0: Analysis & Setup ✓
+## Phase 0: Analysis ✓COMPLETE
 
-[Tasks]
-✓ProjectBrief::Received+Analyzed
-✓CodebaseAnalysis::Complete
-✓MemoryBank::Initialized
-✓Strategy::POC-First-Decided
+- [x] Project brief received
+- [x] Codebase analysis complete
+- [x] Memory Bank initialized
+- [x] Strategy decided (BBC + TDD)
+- [x] Entry points identified:
+  - spawn.c:382 → fdforkpty()
+  - server.c:106 → server_create_socket()
+  - server.c:430 → server_signal()
+  - job.c:120 → fork()
 
-[Findings]
-✓PTY-entry::spawn.c:382→fdforkpty()
-✓IPC-entry::server.c:106→server_create_socket()
-✓Signal-entry::server.c:430→server_signal()
-✓Process-entry::job.c:120→fork()
-✓Reference::osdep-cygwin.c+forkpty-sunos.c
+## Phase 0.5: POCs ✓CORE COMPLETE
 
-## Phase 0.5: POCs ✓ (Core Complete!)
-
-[BuildSystem]
-✓Converted::vcxproj→CMake
-✓Created::CMakeLists.txt{root+6subdirs}
-✓Created::CMakePresets.json
-✓Created::build.bat{VS2026-env}
-✓Build::Successful{Ninja+MSVC-v145}
-
-[POC Status]
-| POC | Build | Test | Result |
+| POC | Build | Test | Status |
 |-----|-------|------|--------|
-| 01-conpty | ✓ | ✓ | **WORKS!** PTY+spawn+resize |
-| 02-named-pipes | ✓ | ✓ | **WORKS!** Client↔Server IPC |
-| 03-process | ✓ | ✓ | **5/5 PASSED!** All tests |
-| 04-console-events | ✓ | ~interactive | Compiles, needs manual test |
-| 05-pdcurses | - | - | Skipped{needs-dependency} |
-| 06-libevent-win | - | - | Skipped{needs-vcpkg} |
+| 01-conpty | ✓ | ✓ | **WORKS** |
+| 02-named-pipes | ✓ | ✓ | **WORKS** |
+| 03-process | ✓ | ✓ | **5/5 PASSED** |
+| 04-console-events | ✓ | ~ | Needs manual test |
+| 05-pdcurses | - | - | Skipped |
+| 06-libevent | - | - | Skipped |
 
-[Test Results Detail]
+## Phase 1: Foundation ⚡IN PROGRESS
 
-01-conpty:
-✓CreatePseudoConsole(80x24)
-✓SpawnProcess{cmd.exe,PID:84244}
-✓ReadOutput{VT-sequences}
-✓ResizePseudoConsole(120x40)
-✓Cleanup
+[Completed]
+- [x] windows/ folder structure
+- [x] CMakeLists.txt
+- [x] build.bat
+- [x] compat-win32.h
+- [x] osdep-win32.c (stub)
+- [x] PORTING-PLAN.md (with TDD checkboxes)
+- [x] TDD-STRATEGY.md
+- [x] OPERATIONAL-RULES.md
+- [x] CLAUDE.md session procedure
 
-02-named-pipes:
-✓Server::CreateNamedPipe{\\.\pipe\tmux-test}
-✓Client::Connect
-✓Send::"Hello from client"
-✓Recv::"Hello from server"
-✓Bidirectional::OK
+[Remaining]
+- [ ] Install libevent (vcpkg)
+- [ ] Install PDCurses (vcpkg)
+- [ ] Create cmake/FindPDCurses.cmake
+- [ ] Create cmake/FindLibevent.cmake
+- [ ] First compile attempt
+- [ ] All headers compile
 
-03-process:
-✓Test1::Spawn+Wait{exit-code:0}
-✓Test2::CustomEnv{MY_VAR=hello_from_poc}
-✓Test3::NonBlockingPoll{3-polls}
-✓Test4::TerminateProcess{exit-code:1}
-✓Test5::WorkingDirectory{C:\Windows}
+## Phase 2: PTY Layer (TDD) ⏳PENDING
 
-## Phase 1-6: Implementation (READY TO PLAN)
+Depends: Phase 1 complete
+Reference: POC-01, POC-03
 
-[Status]
-⚡unblocked::CorePOCsValidated!
-?next::CreateComprehensivePlan
-→Map::tmux-code→Windows-APIs
-→Estimate::Effort
-→Begin::Implementation
+- [ ] test_pty.c (write tests first)
+- [ ] pty-win32.c (implement to pass)
+- [ ] test_proc.c
+- [ ] proc-win32.c
+- [ ] Adapt spawn.c, job.c
 
-[Validated Mappings]
-forkpty()→ConPTY{CreatePseudoConsole}✓
-UnixSocket→NamedPipes{CreateNamedPipe}✓
-fork+exec→CreateProcess✓
-waitpid→WaitForSingleObject✓
-kill→TerminateProcess✓
+## Phase 3: IPC Layer (TDD) ⏳PENDING
 
-## Metrics
+Depends: Phase 1 complete
+Reference: POC-02
 
-[Completion]
-Phase0::Analysis%100
-Phase0.5::POCs%80{core-done,optional-pending}
-Phase1-6::Implementation%0{ready-to-plan}
+- [ ] test_ipc.c
+- [ ] ipc-win32.c
+- [ ] test_imsg.c
+- [ ] imsg-win32.c
+- [ ] Adapt server.c, client.c
 
-Overall%~25
+## Phase 4: Signal Layer (TDD) ⏳PENDING
+
+Depends: Phase 1 complete
+Reference: POC-04
+
+- [ ] test_signal.c
+- [ ] signal-win32.c
+- [ ] Adapt proc.c
+
+## Phase 5: Terminal Layer (TDD) ⏳PENDING
+
+Depends: Phase 1 complete
+
+- [ ] test_termios.c
+- [ ] termios-win32.h
+- [ ] Adapt tty.c
+- [ ] PDCurses integration
+
+## Phase 6: Integration ⏳PENDING
+
+Depends: Phase 2-5 complete
+
+- [ ] Full build
+- [ ] tmux new-session
+- [ ] tmux split-window
+- [ ] tmux detach/attach
+- [ ] Bug fixes
+
+## File Counts
+
+| Category | Total | Done |
+|----------|-------|------|
+| Windows src to create | 11 | 1 |
+| Windows tests to create | 6 | 0 |
+| Critical tmux files | 12 | 0 |
+| Core tmux files | 90+ | - |
+
+## Parallelization Ready
+
+After Phase 1 complete, 4 agents can work in parallel:
+- Agent-PTY: pty-win32.c + proc-win32.c
+- Agent-IPC: ipc-win32.c + imsg-win32.c
+- Agent-SIGNAL: signal-win32.c
+- Agent-TERMINAL: termios-win32.h

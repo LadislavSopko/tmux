@@ -2,116 +2,61 @@
 
 §MBEL:5.0
 
-## Session Start Flow (ALWAYS FOLLOW)
-
-```
-1. Read memory-bank/README.md
-2. Read memory-bank/*.md (all core files)
-3. Check activeContext.md for current task
-4. Check progress.md for status
-5. Continue work OR ask user what to do
-6. Update activeContext+progress BEFORE ending
-```
-
 ## Current Focus
 
-@task::POC-Validation-Complete!
-✓validated::CoreAPIs{ConPTY,NamedPipes,CreateProcess}
-?next::PlanImplementation
+@task::Phase1-Foundation
+⚡active::CompleteRemainingSetupTasks
 
-## Major Milestone Achieved!
+## What To Do Next
 
-!BREAKTHROUGH::CorePOCsWork!
-→ConPTY::CanReplace::forkpty()
-→NamedPipes::CanReplace::UnixSockets
-→CreateProcess::CanReplace::fork+exec
+1. Install libevent (vcpkg)
+2. Install PDCurses (vcpkg)
+3. Create cmake/FindPDCurses.cmake
+4. Create cmake/FindLibevent.cmake
+5. First compile attempt
+6. Fix errors until headers compile
 
-## Build System
+## Completed
 
-[CMake-Based]
-✓pocs/CMakeLists.txt
-✓pocs/CMakePresets.json
-✓pocs/build.bat{loads-VS2026-env}
+[Session 2024-01-29]
+✓POCs validated (ConPTY, NamedPipes, Process)
+✓windows/ folder structure created
+✓PORTING-PLAN.md with TDD checkboxes
+✓TDD-STRATEGY.md
+✓OPERATIONAL-RULES.md
+✓build.bat
+✓compat-win32.h
+✓osdep-win32.c (stub)
+✓CLAUDE.md updated with session procedure
 
-[Build Command]
-```batch
-cd D:\Projekty\AI_Works\tmux\pocs
-build.bat
-```
+## POC Status (Reference)
 
-[Output]
-build/bin/Debug/*.exe
-
-## Test Results Summary
-
-[POC-01-ConPTY] ✓WORKS
-- CreatePseudoConsole ✓
-- Spawn cmd.exe ✓
-- Resize ✓
-
-[POC-02-NamedPipes] ✓WORKS
-- Server listen ✓
-- Client connect ✓
-- Bidirectional ✓
-
-[POC-03-Process] ✓5/5-PASSED
-- Spawn+wait ✓
-- Custom env ✓
-- Polling ✓
-- Terminate ✓
-- Working dir ✓
-
-[POC-04-ConsoleEvents] ~COMPILES
-- Needs manual test
-
-[POC-05-PDCurses] -SKIPPED
-- Needs dependency
-
-[POC-06-libevent] -SKIPPED
-- Needs vcpkg
-
-## Key Discoveries (From Analysis)
-
-[PTY-Layer]
-spawn.c:382→fdforkpty()
-forkpty-sunos.c→reference
-!Windows::ConPTY-validated✓
-
-[IPC-Layer]
-server.c:106→server_create_socket()
-AF_UNIX+SOCK_STREAM
-!Windows::NamedPipes-validated✓
-
-[Signal-Layer]
-server.c:430→server_signal()
-SIGCHLD→waitpid()
-?Windows::ConsoleEvents{needs-manual-test}
-
-[Process-Layer]
-job.c:120→fork()
-!Windows::CreateProcess-validated✓
+| POC | Status |
+|-----|--------|
+| 01-conpty | ✓WORKS |
+| 02-named-pipes | ✓WORKS |
+| 03-process | ✓5/5 PASSED |
+| 04-console-events | ~COMPILES |
+| 05-pdcurses | -SKIPPED |
+| 06-libevent | -SKIPPED |
 
 ## Active Decisions
 
-✓BBC-pattern{wrap-not-rewrite}
-✓ConPTY{Win10-1809+}
-✓NamedPipes{IPC}
-✓CMake{build-system}
-✓POC-First{validate-before-implement}!
+✓BBC-pattern (wrap, don't rewrite)
+✓TDD methodology
+✓CMake build system
+✓windows/ separate folder
+✓4 parallel layers possible
 
-## Next Steps
+## Blockers
 
-?Phase1::CreateImplementationPlan
-→Identify::AllFilesToModify
-→Design::AbstractionLayers
-→Estimate::Effort
-→Prioritize::Tasks
+None currently.
 
 ## Session End Checklist
 
 ```
-✓ Update activeContext.md with current state
-✓ Update progress.md with completed/pending
-✓ Update history.md with session summary
-□ Commit if significant progress
+[ ] Update this file with current state
+[ ] Update progress.md with results
+[ ] Mark [x] in PORTING-PLAN.md
+[ ] Commit changes
 ```
