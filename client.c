@@ -32,6 +32,15 @@
 
 #include "tmux.h"
 
+#ifdef _WIN32
+/* On Windows, the global environment is _environ */
+#define global_environ _environ
+extern char **_environ;
+#else
+#define global_environ environ
+extern char **environ;
+#endif
+
 static struct tmuxproc	*client_proc;
 static struct tmuxpeer	*client_peer;
 static uint64_t		 client_flags;
@@ -484,7 +493,7 @@ client_send_identify(const char *ttynam, const char *termname, char **caps,
 	pid = getpid();
 	proc_send(client_peer, MSG_IDENTIFY_CLIENTPID, -1, &pid, sizeof pid);
 
-	for (ss = environ; *ss != NULL; ss++) {
+	for (ss = global_environ; *ss != NULL; ss++) {
 		sslen = strlen(*ss) + 1;
 		if (sslen > MAX_IMSGSIZE - IMSG_HEADER_SIZE)
 			continue;

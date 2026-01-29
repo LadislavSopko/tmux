@@ -23,7 +23,11 @@
 #include "tmux.h"
 
 void
+#ifdef _WIN32
+tmux_resize_window(struct window *w, u_int sx, u_int sy, int xpixel, int ypixel)
+#else
 resize_window(struct window *w, u_int sx, u_int sy, int xpixel, int ypixel)
+#endif
 {
 	int	zoomed;
 

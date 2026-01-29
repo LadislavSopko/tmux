@@ -46,10 +46,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#ifndef _WIN32
 #include <arpa/nameser.h>
+#endif
 
 #include <ctype.h>
+#ifndef _WIN32
 #include <resolv.h>
+#endif
 #include <stdio.h>
 
 #include <stdlib.h>

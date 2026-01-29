@@ -106,6 +106,7 @@ set(TMUX_CORE_SOURCES
     ${TMUX_SRC_DIR}/cmd-switch-client.c
     ${TMUX_SRC_DIR}/cmd-unbind-key.c
     ${TMUX_SRC_DIR}/cmd-wait-for.c
+    ${TMUX_SRC_DIR}/cmd-parse.c
     ${TMUX_SRC_DIR}/colour.c
     ${TMUX_SRC_DIR}/control.c
     ${TMUX_SRC_DIR}/control-notify.c

@@ -19,6 +19,17 @@
 #include <stdio.h>
 #include <string.h>
 
+/*
+ * Windows defines macros that conflict with tmux code.
+ * These must be undefined after including windows.h.
+ */
+#ifdef ERROR
+#undef ERROR       /* Conflicts with yacc/bison token in cmd-parse.h */
+#endif
+#ifdef MOUSE_MOVED
+#undef MOUSE_MOVED /* Conflicts with tmux mouse handling */
+#endif
+
 /* Windows defines 'environ' as a macro - we need to undef it
  * because tmux uses it as a struct member name.
  * We include stdlib.h above to ensure we have the real environ
@@ -75,6 +86,11 @@ extern char **_environ;
 #endif
 #ifndef MAXPATHLEN
 #define MAXPATHLEN      PATH_MAX
+#endif
+
+/* POSIX terminal constants */
+#ifndef _POSIX_VDISABLE
+#define _POSIX_VDISABLE 0  /* Value to disable special characters */
 #endif
 
 /*
@@ -370,6 +386,204 @@ static __inline int wcwidth(wchar_t wc)
         return 2;
     return 1;
 }
+
+/*
+ * Clock functions
+ */
+#ifndef CLOCK_REALTIME
+#define CLOCK_REALTIME  0
+#define CLOCK_MONOTONIC 1
+#endif
+
+struct timespec;
+static __inline int clock_gettime(int clk_id, struct timespec *tp)
+{
+    FILETIME ft;
+    ULARGE_INTEGER uli;
+
+    (void)clk_id;
+    GetSystemTimeAsFileTime(&ft);
+    uli.LowPart = ft.dwLowDateTime;
+    uli.HighPart = ft.dwHighDateTime;
+    /* Convert from 100-ns intervals since 1601 to seconds since 1970 */
+    uli.QuadPart -= 116444736000000000ULL;
+    if (tp) {
+        tp->tv_sec = (long)(uli.QuadPart / 10000000ULL);
+        tp->tv_nsec = (long)((uli.QuadPart % 10000000ULL) * 100);
+    }
+    return 0;
+}
+
+/*
+ * String functions
+ */
+
+/* strcasestr - case-insensitive strstr */
+static __inline char *strcasestr(const char *haystack, const char *needle)
+{
+    size_t nlen, hlen;
+    if (!needle[0]) return (char *)haystack;
+    nlen = strlen(needle);
+    hlen = strlen(haystack);
+    while (hlen >= nlen) {
+        if (_strnicmp(haystack, needle, nlen) == 0)
+            return (char *)haystack;
+        haystack++;
+        hlen--;
+    }
+    return NULL;
+}
+
+/*
+ * File system functions
+ */
+
+/* realpath - resolve pathname */
+static __inline char *realpath(const char *path, char *resolved_path)
+{
+    char *result = resolved_path;
+    if (result == NULL)
+        result = (char *)malloc(PATH_MAX);
+    if (result && _fullpath(result, path, PATH_MAX) != NULL)
+        return result;
+    if (result && result != resolved_path)
+        free(result);
+    return NULL;
+}
+
+/* lstat - stat without following symlinks (Windows doesn't have symlinks in same way) */
+#define lstat(p, b) stat(p, b)
+
+/* getpagesize - memory page size */
+static __inline int getpagesize(void)
+{
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    return (int)si.dwPageSize;
+}
+
+/*
+ * Process/user functions
+ */
+
+/* getpeereid - get peer credentials (stub for Windows) */
+static __inline int getpeereid(int s, uid_t *euid, gid_t *egid)
+{
+    (void)s;
+    if (euid) *euid = 0;
+    if (egid) *egid = 0;
+    return 0;
+}
+
+/* setproctitle - set process title (no-op on Windows) */
+static __inline void setproctitle(const char *fmt, ...) { (void)fmt; }
+
+/* daemon - daemonize (stub - actual in daemon-win32.c) */
+int daemon(int nochdir, int noclose);
+
+/* getptmfd - get PTY master fd (stub) */
+static __inline int getptmfd(void) { return -1; }
+
+/*
+ * File I/O functions
+ */
+
+/* fgetln - get line from file (returns pointer to static buffer) */
+static __inline char *fgetln(FILE *fp, size_t *lenp)
+{
+    static char *buf = NULL;
+    static size_t bufsz = 0;
+    size_t len = 0;
+    int c;
+
+    while ((c = fgetc(fp)) != EOF) {
+        if (len + 2 > bufsz) {
+            bufsz = bufsz ? bufsz * 2 : 256;
+            buf = (char *)realloc(buf, bufsz);
+        }
+        buf[len++] = (char)c;
+        if (c == '\n') break;
+    }
+    if (len == 0) return NULL;
+    buf[len] = '\0';
+    if (lenp) *lenp = len;
+    return buf;
+}
+
+/* getline - get line from file (POSIX-compatible) */
+static __inline ssize_t getline(char **lineptr, size_t *n, FILE *stream)
+{
+    char *buf = *lineptr;
+    size_t bufsz = *n;
+    size_t len = 0;
+    int c;
+
+    if (buf == NULL || bufsz == 0) {
+        bufsz = 256;
+        buf = (char *)malloc(bufsz);
+        if (buf == NULL) return -1;
+    }
+
+    while ((c = fgetc(stream)) != EOF) {
+        if (len + 2 > bufsz) {
+            bufsz = bufsz * 2;
+            char *nbuf = (char *)realloc(buf, bufsz);
+            if (nbuf == NULL) { free(buf); return -1; }
+            buf = nbuf;
+        }
+        buf[len++] = (char)c;
+        if (c == '\n') break;
+    }
+
+    if (len == 0 && c == EOF) {
+        *lineptr = buf;
+        *n = bufsz;
+        return -1;
+    }
+    buf[len] = '\0';
+    *lineptr = buf;
+    *n = bufsz;
+    return (ssize_t)len;
+}
+
+/* closefrom - close all file descriptors >= lowfd */
+static __inline void closefrom(int lowfd)
+{
+    int maxfd = 1024;  /* Reasonable default for Windows */
+    int fd;
+    for (fd = lowfd; fd < maxfd; fd++) {
+        _close(fd);
+    }
+}
+
+/* ctime_r - thread-safe ctime */
+static __inline char *ctime_r(const time_t *timep, char *buf)
+{
+    errno_t err = ctime_s(buf, 26, timep);
+    if (err != 0) return NULL;
+    return buf;
+}
+
+/* fdforkpty - fork with pseudo-terminal (stub for Windows)
+ * On Windows, we use CreateProcess with ConPTY instead.
+ * This stub returns -1 (error) - actual implementation in pty-win32.c
+ *
+ * Note: struct termios and struct winsize are defined in termios.h and sys/ioctl.h
+ */
+pid_t fdforkpty(int ptmfd, int *master, char *name, struct termios *tio, struct winsize *ws);
+
+/*
+ * Environment variable handling
+ * MSVC uses _environ instead of environ. However, we canNOT #define environ _environ
+ * because tmux has 'struct environ' type which would be broken by the macro.
+ * Files that need the global environ variable should use _environ directly.
+ */
+extern char **_environ;
+
+/*
+ * Terminal/curses variables
+ * Note: cur_term is declared in term.h with proper TERMINAL* type
+ */
 
 /*
  * Forward declarations for Windows implementations

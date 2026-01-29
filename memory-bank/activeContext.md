@@ -4,85 +4,89 @@
 
 ## Current Focus
 
-@task::Phase1-Foundation
-⚡active::POSIX-compat-95%-complete
+@task::Phase1Complete
+⚡completed::tmux.exe builds and links successfully!
 
-## What Was Done This Session
+## Session 2026-01-29 - PHASE 1 COMPLETE!
 
-[Session 2026-01-29 - Continued]
+### Achievement
+**tmux.exe compiles, links, and runs on Windows!**
+```
+$ tmux -V
+tmux 3.5.0
+```
 
-✓ Fixed multiple compilation errors iteratively:
-  - Added SIG_BLOCK, SIG_SETMASK, SIG_UNBLOCK
-  - Added socketpair stub
-  - Created glob.h
-  - Created libgen.h (basename/dirname)
-  - Created netinet/in.h
-  - Created regex.h (stub)
-  - Created resolv.h (b64_ntop/b64_pton)
-  - Created sys/utsname.h (uname)
-  - Created langinfo.h (nl_langinfo)
-  - Created arpa/inet.h
-  - Created term.h (curses terminal defs)
-  - Added SHUT_RD/WR/RDWR, killpg stub
-  - Added gmtime_r, localtime_r
-  - Added wcwidth
-  - Added fseeko, ftello, mkstemp
-  - Added PATH_MAX, NAME_MAX, MAXPATHLEN
+### What Was Done
 
-✓ Build progress: 145/153 files compile (95%)
+1. **Fixed cur_term type conflict**
+   - Removed duplicate declaration from compat-win32.h
+   - Consolidated in term.h as TERMINAL*
+   - Updated osdep-win32.c to use correct type
 
-## Remaining Issues (8 files)
+2. **Generated cmd-parse.c from yacc**
+   - Used bison to generate cmd-parse.c/cmd-parse.h
+   - Added cmd-parse.c to CMakeLists.txt
 
-Files requiring source patches:
-1. popup.c - SIZE enum conflicts with Windows typedef
-2. mode-tree.c - VLA (Variable Length Array)
-3. input.c - Designated initializer arrays with unknown size
-4. tty.c - resize_window() conflicts with PDCurses
-5. tty-term.c - term.h/curses integration
-6. tty-keys.c - curses integration
-7. setenv.c - environ undeclared
-8. base64.c - minor include issue
+3. **Fixed linker errors**
+   - Added closefrom, getline, ctime_r implementations
+   - Added fdforkpty stub in pty-win32.c
+   - Fixed environ macro conflicts
+
+4. **Fixed Windows macro conflicts**
+   - #undef ERROR (conflicts with bison tokens)
+   - Already had #undef SIZE
+
+5. **Patched environ handling**
+   - environ.c: global_environ alias
+   - client.c: global_environ alias
+   - tmux.c: system_environ alias
+
+## Build Status
+
+```
+Compilation: 154/154 files ✓
+Linking: SUCCESS ✓
+Executable: tmux.exe (1.87MB) ✓
+Runtime: tmux -V works ✓
+```
 
 ## What To Do Next
 
-1. Create minimal patches for VLA issues (mode-tree.c, popup.c)
-2. Handle PDCurses symbol conflicts (resize_window)
-3. Provide Windows-native setenv() replacement
-4. Complete Phase 1 with 100% compilation
-5. Then start Phase 2-6 TDD layers
+**Phase 2: PTY Layer (ConPTY)**
+1. Implement pty_create() with CreatePseudoConsole
+2. Implement pty_spawn() with CreateProcess
+3. Implement pty_read/write with ReadFile/WriteFile
+4. Use POC-01 ConPTY as reference
 
-## Blockers
+**Then Phase 3-6:**
+- Phase 3: IPC Layer (Named Pipes)
+- Phase 4: Process Management
+- Phase 5: Terminal Integration
+- Phase 6: Full Integration
 
-8 files need source modifications - acceptable per BBC strategy for:
-- C99 features not supported by MSVC (VLA)
-- Windows naming conflicts (SIZE, resize_window)
+## Files Modified This Session
 
-## POSIX Headers Created (20 total)
+**Core tmux files (patched):**
+- environ.c, client.c, tmux.c - environ handling
+
+**Windows port files:**
+- windows/include/compat-win32.h
+- windows/src/osdep-win32.c
+- windows/src/pty-win32.c
+- windows/CMakeLists.txt
+
+**Generated files:**
+- cmd-parse.c, cmd-parse.h (bison)
+
+## POSIX Headers Created (20+ total)
 
 ```
 windows/include/
 ├── compat-win32.h (main compat)
-├── unistd.h
-├── termios.h
-├── fnmatch.h
-├── pwd.h
-├── glob.h
-├── libgen.h
-├── regex.h
-├── resolv.h
-├── langinfo.h
-├── term.h
-├── sys/
-│   ├── time.h
-│   ├── socket.h
-│   ├── wait.h
-│   ├── uio.h
-│   ├── ioctl.h
-│   ├── file.h
-│   ├── un.h
-│   └── utsname.h
-├── netinet/
-│   └── in.h
-└── arpa/
-    └── inet.h
+├── unistd.h, termios.h, fnmatch.h, pwd.h
+├── glob.h, libgen.h, regex.h, resolv.h
+├── langinfo.h, term.h
+├── sys/{time,socket,wait,uio,ioctl,file,un,utsname}.h
+├── netinet/in.h
+└── arpa/inet.h
 ```

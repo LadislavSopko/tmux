@@ -716,7 +716,11 @@ mode_tree_draw(struct mode_tree_data *mtd)
 	char			*text, *start, *key;
 	const char		*tag, *symbol;
 	size_t			 size, n;
+#ifdef _WIN32
+	int			 keylen, pad, *alignlen = (int *)_alloca((mtd->maxdepth + 1) * sizeof(int));
+#else
 	int			 keylen, pad, alignlen[mtd->maxdepth + 1];
+#endif
 
 	if (mtd->line_size == 0)
 		return;

@@ -33,6 +33,15 @@
 
 #include "tmux.h"
 
+#ifdef _WIN32
+/* On Windows, the system environment is _environ (char**) */
+#define system_environ _environ
+extern char **_environ;
+#else
+#define system_environ environ
+extern char **environ;
+#endif
+
 struct options	*global_options;	/* server options */
 struct options	*global_s_options;	/* session options */
 struct options	*global_w_options;	/* window options */
@@ -373,7 +382,7 @@ main(int argc, char **argv)
 		flags = CLIENT_LOGIN;
 
 	global_environ = environ_create();
-	for (var = environ; *var != NULL; var++)
+	for (var = system_environ; *var != NULL; var++)
 		environ_put(global_environ, *var, 0);
 	if ((cwd = find_cwd()) != NULL)
 		environ_set(global_environ, "PWD", 0, "%s", cwd);

@@ -17,6 +17,15 @@
 #include "tmux.h"
 
 /*
+ * cur_term - current terminal structure for curses compatibility.
+ * PDCurses doesn't use terminfo, so this is a stub.
+ * Forward declaration of TERMINAL type (defined in term.h)
+ */
+struct _terminal;
+typedef struct _terminal TERMINAL;
+TERMINAL *cur_term = NULL;
+
+/*
  * Get the name of the process associated with a file descriptor.
  * On Windows, we use the console's foreground process or return NULL.
  *

@@ -28,6 +28,14 @@
 
 #include "tmux.h"
 
+/* MSVC doesn't support forward declaration of static arrays with unknown size.
+ * Use non-static (extern linkage) tables on Windows. */
+#ifdef _WIN32
+#define INPUT_TABLE_DEF const struct input_transition
+#else
+#define INPUT_TABLE_DEF static const struct input_transition
+#endif
+
 /*
  * Based on the description by Paul Williams at:
  *
@@ -367,23 +375,23 @@ struct input_state {
 	{ 0x1b, 0x1b, NULL,		 &input_state_esc_enter }
 
 /* Forward declarations of state tables. */
-static const struct input_transition input_state_ground_table[];
-static const struct input_transition input_state_esc_enter_table[];
-static const struct input_transition input_state_esc_intermediate_table[];
-static const struct input_transition input_state_csi_enter_table[];
-static const struct input_transition input_state_csi_parameter_table[];
-static const struct input_transition input_state_csi_intermediate_table[];
-static const struct input_transition input_state_csi_ignore_table[];
-static const struct input_transition input_state_dcs_enter_table[];
-static const struct input_transition input_state_dcs_parameter_table[];
-static const struct input_transition input_state_dcs_intermediate_table[];
-static const struct input_transition input_state_dcs_handler_table[];
-static const struct input_transition input_state_dcs_escape_table[];
-static const struct input_transition input_state_dcs_ignore_table[];
-static const struct input_transition input_state_osc_string_table[];
-static const struct input_transition input_state_apc_string_table[];
-static const struct input_transition input_state_rename_string_table[];
-static const struct input_transition input_state_consume_st_table[];
+INPUT_TABLE_DEF input_state_ground_table[];
+INPUT_TABLE_DEF input_state_esc_enter_table[];
+INPUT_TABLE_DEF input_state_esc_intermediate_table[];
+INPUT_TABLE_DEF input_state_csi_enter_table[];
+INPUT_TABLE_DEF input_state_csi_parameter_table[];
+INPUT_TABLE_DEF input_state_csi_intermediate_table[];
+INPUT_TABLE_DEF input_state_csi_ignore_table[];
+INPUT_TABLE_DEF input_state_dcs_enter_table[];
+INPUT_TABLE_DEF input_state_dcs_parameter_table[];
+INPUT_TABLE_DEF input_state_dcs_intermediate_table[];
+INPUT_TABLE_DEF input_state_dcs_handler_table[];
+INPUT_TABLE_DEF input_state_dcs_escape_table[];
+INPUT_TABLE_DEF input_state_dcs_ignore_table[];
+INPUT_TABLE_DEF input_state_osc_string_table[];
+INPUT_TABLE_DEF input_state_apc_string_table[];
+INPUT_TABLE_DEF input_state_rename_string_table[];
+INPUT_TABLE_DEF input_state_consume_st_table[];
 
 /* ground state definition. */
 static const struct input_state input_state_ground = {
@@ -505,7 +513,7 @@ static const struct input_state input_state_consume_st = {
 };
 
 /* ground state table. */
-static const struct input_transition input_state_ground_table[] = {
+INPUT_TABLE_DEF input_state_ground_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, input_c0_dispatch, NULL },
@@ -519,7 +527,7 @@ static const struct input_transition input_state_ground_table[] = {
 };
 
 /* esc_enter state table. */
-static const struct input_transition input_state_esc_enter_table[] = {
+INPUT_TABLE_DEF input_state_esc_enter_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, input_c0_dispatch,  NULL },
@@ -546,7 +554,7 @@ static const struct input_transition input_state_esc_enter_table[] = {
 };
 
 /* esc_intermediate state table. */
-static const struct input_transition input_state_esc_intermediate_table[] = {
+INPUT_TABLE_DEF input_state_esc_intermediate_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, input_c0_dispatch,  NULL },
@@ -560,7 +568,7 @@ static const struct input_transition input_state_esc_intermediate_table[] = {
 };
 
 /* csi_enter state table. */
-static const struct input_transition input_state_csi_enter_table[] = {
+INPUT_TABLE_DEF input_state_csi_enter_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, input_c0_dispatch,  NULL },
@@ -578,7 +586,7 @@ static const struct input_transition input_state_csi_enter_table[] = {
 };
 
 /* csi_parameter state table. */
-static const struct input_transition input_state_csi_parameter_table[] = {
+INPUT_TABLE_DEF input_state_csi_parameter_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, input_c0_dispatch,  NULL },
@@ -596,7 +604,7 @@ static const struct input_transition input_state_csi_parameter_table[] = {
 };
 
 /* csi_intermediate state table. */
-static const struct input_transition input_state_csi_intermediate_table[] = {
+INPUT_TABLE_DEF input_state_csi_intermediate_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, input_c0_dispatch,  NULL },
@@ -611,7 +619,7 @@ static const struct input_transition input_state_csi_intermediate_table[] = {
 };
 
 /* csi_ignore state table. */
-static const struct input_transition input_state_csi_ignore_table[] = {
+INPUT_TABLE_DEF input_state_csi_ignore_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, input_c0_dispatch, NULL },
@@ -625,7 +633,7 @@ static const struct input_transition input_state_csi_ignore_table[] = {
 };
 
 /* dcs_enter state table. */
-static const struct input_transition input_state_dcs_enter_table[] = {
+INPUT_TABLE_DEF input_state_dcs_enter_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, NULL,		  NULL },
@@ -643,7 +651,7 @@ static const struct input_transition input_state_dcs_enter_table[] = {
 };
 
 /* dcs_parameter state table. */
-static const struct input_transition input_state_dcs_parameter_table[] = {
+INPUT_TABLE_DEF input_state_dcs_parameter_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, NULL,		  NULL },
@@ -661,7 +669,7 @@ static const struct input_transition input_state_dcs_parameter_table[] = {
 };
 
 /* dcs_intermediate state table. */
-static const struct input_transition input_state_dcs_intermediate_table[] = {
+INPUT_TABLE_DEF input_state_dcs_intermediate_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, NULL,		  NULL },
@@ -676,7 +684,7 @@ static const struct input_transition input_state_dcs_intermediate_table[] = {
 };
 
 /* dcs_handler state table. */
-static const struct input_transition input_state_dcs_handler_table[] = {
+INPUT_TABLE_DEF input_state_dcs_handler_table[] = {
 	/* No INPUT_STATE_ANYWHERE */
 
 	{ 0x00, 0x1a, input_input,  NULL },
@@ -687,7 +695,7 @@ static const struct input_transition input_state_dcs_handler_table[] = {
 };
 
 /* dcs_escape state table. */
-static const struct input_transition input_state_dcs_escape_table[] = {
+INPUT_TABLE_DEF input_state_dcs_escape_table[] = {
 	/* No INPUT_STATE_ANYWHERE */
 
 	{ 0x00, 0x5b, input_input,	  &input_state_dcs_handler },
@@ -698,7 +706,7 @@ static const struct input_transition input_state_dcs_escape_table[] = {
 };
 
 /* dcs_ignore state table. */
-static const struct input_transition input_state_dcs_ignore_table[] = {
+INPUT_TABLE_DEF input_state_dcs_ignore_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, NULL,	    NULL },
@@ -710,7 +718,7 @@ static const struct input_transition input_state_dcs_ignore_table[] = {
 };
 
 /* osc_string state table. */
-static const struct input_transition input_state_osc_string_table[] = {
+INPUT_TABLE_DEF input_state_osc_string_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x06, NULL,	     NULL },
@@ -724,7 +732,7 @@ static const struct input_transition input_state_osc_string_table[] = {
 };
 
 /* apc_string state table. */
-static const struct input_transition input_state_apc_string_table[] = {
+INPUT_TABLE_DEF input_state_apc_string_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, NULL,	    NULL },
@@ -736,7 +744,7 @@ static const struct input_transition input_state_apc_string_table[] = {
 };
 
 /* rename_string state table. */
-static const struct input_transition input_state_rename_string_table[] = {
+INPUT_TABLE_DEF input_state_rename_string_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, NULL,	    NULL },
@@ -748,7 +756,7 @@ static const struct input_transition input_state_rename_string_table[] = {
 };
 
 /* consume_st state table. */
-static const struct input_transition input_state_consume_st_table[] = {
+INPUT_TABLE_DEF input_state_consume_st_table[] = {
 	INPUT_STATE_ANYWHERE,
 
 	{ 0x00, 0x17, NULL,	    NULL },

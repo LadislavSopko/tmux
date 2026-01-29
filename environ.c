@@ -29,6 +29,18 @@
  * Environment - manipulate a set of environment variables.
  */
 
+#ifdef _WIN32
+/*
+ * On Windows, the global environment variable is _environ.
+ * We create a local alias for the global usage (not the struct environ type).
+ */
+#define global_environ _environ
+extern char **_environ;
+#else
+#define global_environ environ
+extern char **environ;
+#endif
+
 RB_HEAD(environ, environ_entry);
 static int environ_cmp(struct environ_entry *, struct environ_entry *);
 RB_GENERATE_STATIC(environ, environ_entry, entry, environ_cmp);
@@ -213,7 +225,7 @@ environ_push(struct environ *env)
 {
 	struct environ_entry	*envent;
 
-	environ = xcalloc(1, sizeof *environ);
+	global_environ = xcalloc(1, sizeof *global_environ);
 	RB_FOREACH(envent, environ, env) {
 		if (envent->value != NULL &&
 		    *envent->name != '\0' &&

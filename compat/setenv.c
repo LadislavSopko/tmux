@@ -22,6 +22,13 @@
 
 #include "compat.h"
 
+#ifdef _WIN32
+/* environ is undefined in compat-win32.h to avoid struct member conflicts.
+ * Re-declare it here for this file only. */
+extern char **_environ;
+#define environ _environ
+#endif
+
 int
 setenv(const char *name, const char *value, __unused int overwrite)
 {

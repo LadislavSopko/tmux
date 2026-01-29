@@ -3002,7 +3002,13 @@ const char *status_prompt_type_string(u_int);
 enum prompt_type status_prompt_type(const char *type);
 
 /* resize.c */
+#ifdef _WIN32
+/* Rename to avoid conflict with PDCurses resize_window() */
+void	 tmux_resize_window(struct window *, u_int, u_int, int, int);
+#define resize_window tmux_resize_window
+#else
 void	 resize_window(struct window *, u_int, u_int, int, int);
+#endif
 void	 default_window_size(struct client *, struct session *, struct window *,
 	     u_int *, u_int *, u_int *, u_int *, int);
 void	 recalculate_size(struct window *, int);
