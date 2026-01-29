@@ -1,0 +1,5 @@
+# Build output
+build/
+
+# Third party dependencies (vcpkg, etc.)
+thirdparty/

@@ -115,15 +115,38 @@ Always check the project's README for localized information before working on it
 
 ## Build Commands (Windows Port)
 
-```batch
-:: Build + test tutto
-cd D:\Projekty\AI_Works\tmux\windows
-build.bat
+**IMPORTANTE: Siamo in WSL. Per eseguire comandi Windows, usa `cmd.exe /c`:**
 
-:: POC esistenti (reference)
-cd D:\Projekty\AI_Works\tmux\pocs
-build.bat
+```bash
+# PRIMA VOLTA: installa dipendenze
+cmd.exe /c "D:\\Projekty\\AI_Works\\tmux\\windows\\setup-deps.bat"
+
+# Build Windows port
+cmd.exe /c "D:\\Projekty\\AI_Works\\tmux\\windows\\build.bat"
+
+# Run tests
+cmd.exe /c "D:\\Projekty\\AI_Works\\tmux\\windows\\test.bat"
+
+# Build POCs (reference)
+cmd.exe /c "D:\\Projekty\\AI_Works\\tmux\\pocs\\build.bat"
 ```
+
+### Script Structure
+- `env.bat` - Carica ambiente VS, imposta VCPKG_ROOT
+- `setup-deps.bat` - Installa vcpkg + libevent + pdcurses
+- `build.bat` - cmake configure + ninja build
+- `test.bat` - esegue ctest
+
+### Dipendenze (in windows/thirdparty/)
+- vcpkg (auto-installed by setup-deps.bat)
+- libevent:x64-windows
+- pdcurses:x64-windows
+
+**NON usare mai:**
+- `cd D:\...` direttamente (non funziona in WSL)
+- path con singolo backslash (usa `\\` o `/`)
+- comandi batch senza `cmd.exe /c`
+- installare roba in C:\ - tutto deve stare nel progetto!
 
 ## File Locations
 

@@ -17,11 +17,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 option(TMUX_ENABLE_SIXEL "Enable Sixel image support" OFF)
 option(TMUX_ENABLE_UTF8PROC "Enable UTF8PROC for Unicode" OFF)
 
-# Find dependencies
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
-find_package(LibEvent REQUIRED)
-find_package(PDCurses REQUIRED)
+# Find dependencies (vcpkg)
+find_package(Libevent CONFIG REQUIRED)
+find_package(unofficial-pdcurses CONFIG REQUIRED)
 
 # tmux source directory (parent)
 set(TMUX_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
@@ -211,8 +209,6 @@ target_include_directories(tmux PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${TMUX_SRC_DIR}
     ${TMUX_SRC_DIR}/compat
-    ${LIBEVENT_INCLUDE_DIRS}
-    ${PDCURSES_INCLUDE_DIRS}
 )
 
 # Compile definitions
@@ -226,8 +222,9 @@ target_compile_definitions(tmux PRIVATE
 
 # Link libraries
 target_link_libraries(tmux PRIVATE
-    ${LIBEVENT_LIBRARIES}
-    ${PDCURSES_LIBRARIES}
+    libevent::core
+    libevent::extra
+    unofficial::pdcurses::pdcurses
     kernel32
     advapi32
     user32
@@ -236,9 +233,17 @@ target_link_libraries(tmux PRIVATE
 
 # MSVC-specific settings
 if(MSVC)
-    target_compile_options(tmux PRIVATE /W3 /wd4996)
+    # Force include compat-win32.h before any other header
+    set(COMPAT_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/include/compat-win32.h")
+    target_compile_options(tmux PRIVATE
+        /W3
+        /wd4996
+        /wd4005
+        /wd4273
+        "SHELL:/FI ${COMPAT_HEADER}"
+    )
 else()
-    target_compile_options(tmux PRIVATE -Wall -Wextra)
+    target_compile_options(tmux PRIVATE -Wall -Wextra -include compat-win32.h)
 endif()
 
 # Install

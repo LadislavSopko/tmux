@@ -5,58 +5,84 @@
 ## Current Focus
 
 @task::Phase1-Foundation
-⚡active::CompleteRemainingSetupTasks
+⚡active::POSIX-compat-95%-complete
+
+## What Was Done This Session
+
+[Session 2026-01-29 - Continued]
+
+✓ Fixed multiple compilation errors iteratively:
+  - Added SIG_BLOCK, SIG_SETMASK, SIG_UNBLOCK
+  - Added socketpair stub
+  - Created glob.h
+  - Created libgen.h (basename/dirname)
+  - Created netinet/in.h
+  - Created regex.h (stub)
+  - Created resolv.h (b64_ntop/b64_pton)
+  - Created sys/utsname.h (uname)
+  - Created langinfo.h (nl_langinfo)
+  - Created arpa/inet.h
+  - Created term.h (curses terminal defs)
+  - Added SHUT_RD/WR/RDWR, killpg stub
+  - Added gmtime_r, localtime_r
+  - Added wcwidth
+  - Added fseeko, ftello, mkstemp
+  - Added PATH_MAX, NAME_MAX, MAXPATHLEN
+
+✓ Build progress: 145/153 files compile (95%)
+
+## Remaining Issues (8 files)
+
+Files requiring source patches:
+1. popup.c - SIZE enum conflicts with Windows typedef
+2. mode-tree.c - VLA (Variable Length Array)
+3. input.c - Designated initializer arrays with unknown size
+4. tty.c - resize_window() conflicts with PDCurses
+5. tty-term.c - term.h/curses integration
+6. tty-keys.c - curses integration
+7. setenv.c - environ undeclared
+8. base64.c - minor include issue
 
 ## What To Do Next
 
-1. Install libevent (vcpkg)
-2. Install PDCurses (vcpkg)
-3. Create cmake/FindPDCurses.cmake
-4. Create cmake/FindLibevent.cmake
-5. First compile attempt
-6. Fix errors until headers compile
-
-## Completed
-
-[Session 2024-01-29]
-✓POCs validated (ConPTY, NamedPipes, Process)
-✓windows/ folder structure created
-✓PORTING-PLAN.md with TDD checkboxes
-✓TDD-STRATEGY.md
-✓OPERATIONAL-RULES.md
-✓build.bat
-✓compat-win32.h
-✓osdep-win32.c (stub)
-✓CLAUDE.md updated with session procedure
-
-## POC Status (Reference)
-
-| POC | Status |
-|-----|--------|
-| 01-conpty | ✓WORKS |
-| 02-named-pipes | ✓WORKS |
-| 03-process | ✓5/5 PASSED |
-| 04-console-events | ~COMPILES |
-| 05-pdcurses | -SKIPPED |
-| 06-libevent | -SKIPPED |
-
-## Active Decisions
-
-✓BBC-pattern (wrap, don't rewrite)
-✓TDD methodology
-✓CMake build system
-✓windows/ separate folder
-✓4 parallel layers possible
+1. Create minimal patches for VLA issues (mode-tree.c, popup.c)
+2. Handle PDCurses symbol conflicts (resize_window)
+3. Provide Windows-native setenv() replacement
+4. Complete Phase 1 with 100% compilation
+5. Then start Phase 2-6 TDD layers
 
 ## Blockers
 
-None currently.
+8 files need source modifications - acceptable per BBC strategy for:
+- C99 features not supported by MSVC (VLA)
+- Windows naming conflicts (SIZE, resize_window)
 
-## Session End Checklist
+## POSIX Headers Created (20 total)
 
 ```
-[ ] Update this file with current state
-[ ] Update progress.md with results
-[ ] Mark [x] in PORTING-PLAN.md
-[ ] Commit changes
+windows/include/
+├── compat-win32.h (main compat)
+├── unistd.h
+├── termios.h
+├── fnmatch.h
+├── pwd.h
+├── glob.h
+├── libgen.h
+├── regex.h
+├── resolv.h
+├── langinfo.h
+├── term.h
+├── sys/
+│   ├── time.h
+│   ├── socket.h
+│   ├── wait.h
+│   ├── uio.h
+│   ├── ioctl.h
+│   ├── file.h
+│   ├── un.h
+│   └── utsname.h
+├── netinet/
+│   └── in.h
+└── arpa/
+    └── inet.h
 ```

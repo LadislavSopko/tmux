@@ -10,12 +10,45 @@
 
 #ifdef _WIN32
 
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
 #include <windows.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+/* Windows defines 'environ' as a macro - we need to undef it
+ * because tmux uses it as a struct member name.
+ * We include stdlib.h above to ensure we have the real environ
+ * definition before undefining the macro.
+ * Note: We still need environ in some compat files (setenv.c),
+ * but it conflicts with struct members in tmux code. We use
+ * __environ as a workaround. */
+#ifdef environ
+#undef environ
+#endif
+
+/* Provide access to environment via __environ for compat code */
+extern char **_environ;
+#define __environ _environ
+
+/* Also undefine 'entry' which conflicts with tmux macros */
+#ifdef entry
+#undef entry
+#endif
+
+/* Undefine SIZE which conflicts with tmux enum in popup.c */
+#ifdef SIZE
+#undef SIZE
+#endif
 #include <io.h>
 #include <direct.h>
 #include <process.h>
 #include <fcntl.h>
+#include <time.h>
+#include <wchar.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -32,6 +65,17 @@
 
 /* tmux socket path template - uses named pipes */
 #define TMUX_SOCK       "\\\\.\\pipe\\tmux-%s"
+
+/* PATH_MAX and NAME_MAX */
+#ifndef PATH_MAX
+#define PATH_MAX        260  /* MAX_PATH on Windows */
+#endif
+#ifndef NAME_MAX
+#define NAME_MAX        255
+#endif
+#ifndef MAXPATHLEN
+#define MAXPATHLEN      PATH_MAX
+#endif
 
 /*
  * File mode bits (not used on Windows but needed for compilation)
@@ -99,6 +143,51 @@ typedef long ssize_t;
 #define SIG_IGN     ((void (*)(int))1)
 #define SIG_ERR     ((void (*)(int))-1)
 
+/* sigaction structure and flags */
+#define SA_RESTART  0x10000000
+#define SA_NOCLDSTOP 0x00000001
+#define SA_NOCLDWAIT 0x00000002
+#define SA_SIGINFO   0x00000004
+
+/* sigprocmask 'how' values */
+#define SIG_BLOCK   0
+#define SIG_UNBLOCK 1
+#define SIG_SETMASK 2
+
+typedef unsigned long sigset_t;
+
+struct sigaction {
+    void (*sa_handler)(int);
+    sigset_t sa_mask;
+    int sa_flags;
+};
+
+static __inline int sigemptyset(sigset_t *set) { if (set) *set = 0; return 0; }
+static __inline int sigfillset(sigset_t *set) { if (set) *set = ~0UL; return 0; }
+static __inline int sigaddset(sigset_t *set, int signum) { if (set) *set |= (1UL << signum); return 0; }
+static __inline int sigdelset(sigset_t *set, int signum) { if (set) *set &= ~(1UL << signum); return 0; }
+static __inline int sigismember(const sigset_t *set, int signum) { return set ? ((*set >> signum) & 1) : 0; }
+
+static __inline int sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
+{
+    (void)sig; (void)act; (void)oact;
+    /* Stub - actual implementation in signal-win32.c */
+    return 0;
+}
+
+static __inline int sigprocmask(int how, const sigset_t *set, sigset_t *oset)
+{
+    (void)how; (void)set; (void)oset;
+    return 0;
+}
+
+static __inline int kill(pid_t pid, int sig)
+{
+    (void)pid; (void)sig;
+    /* Stub - actual implementation in signal-win32.c */
+    return 0;
+}
+
 /*
  * Wait status macros
  */
@@ -129,15 +218,38 @@ typedef long ssize_t;
 
 /*
  * Socket definitions - map to Named Pipes
+ * Note: sockaddr_un is defined in sys/un.h
  */
+#ifndef AF_UNIX
 #define AF_UNIX     1
+#endif
+#ifndef SOCK_STREAM
 #define SOCK_STREAM 1
-#define PF_UNSPEC   0
+#endif
 
-struct sockaddr_un {
-    unsigned short sun_family;
-    char sun_path[108];
-};
+/* socketpair stub - Windows doesn't have this, use pipes instead */
+static __inline int socketpair(int domain, int type, int protocol, int sv[2])
+{
+    (void)domain; (void)type; (void)protocol;
+    /* Stub - actual implementation should use anonymous pipes or named pipes */
+    if (sv) { sv[0] = -1; sv[1] = -1; }
+    return -1;
+}
+
+/* shutdown() constants - Windows uses SD_* but we need SHUT_* */
+#ifndef SHUT_RD
+#define SHUT_RD   SD_RECEIVE
+#define SHUT_WR   SD_SEND
+#define SHUT_RDWR SD_BOTH
+#endif
+
+/* killpg stub - kill process group */
+static __inline int killpg(pid_t pgrp, int sig)
+{
+    (void)pgrp; (void)sig;
+    /* Stub - Windows doesn't have process groups like Unix */
+    return -1;
+}
 
 /*
  * Function mappings
@@ -159,18 +271,105 @@ struct sockaddr_un {
 #define isatty(fd)      _isatty(fd)
 #define umask(m)        _umask(m)
 
+/* String functions */
+#define strcasecmp(s1,s2)     _stricmp(s1,s2)
+#define strncasecmp(s1,s2,n)  _strnicmp(s1,s2,n)
+
+/* ttyname stub */
+static __inline char *ttyname(int fd) { (void)fd; return "CON"; }
+
+/* strsignal stub */
+static __inline const char *strsignal(int sig) {
+    static char buf[32];
+    sprintf(buf, "Signal %d", sig);
+    return buf;
+}
+
 #define R_OK    4
 #define W_OK    2
 #define X_OK    0  /* Windows doesn't have X_OK */
 #define F_OK    0
 
 /*
- * Time-related
+ * File functions
  */
-struct timezone {
-    int tz_minuteswest;
-    int tz_dsttime;
-};
+
+/* fseeko/ftello - 64-bit file position */
+#define fseeko(f, o, w)  _fseeki64(f, o, w)
+#define ftello(f)        _ftelli64(f)
+
+/* mkstemp - create unique temporary file */
+static __inline int mkstemp(char *tmpl)
+{
+    int fd = -1;
+    if (_mktemp_s(tmpl, strlen(tmpl) + 1) == 0) {
+        fd = _open(tmpl, _O_RDWR | _O_CREAT | _O_EXCL, _S_IREAD | _S_IWRITE);
+    }
+    return fd;
+}
+
+/* mkstemps - mkstemp with suffix */
+static __inline int mkstemps(char *tmpl, int suffixlen)
+{
+    (void)suffixlen;
+    return mkstemp(tmpl);
+}
+
+/*
+ * Time-related functions
+ */
+
+/* gmtime_r - thread-safe gmtime */
+static __inline struct tm *gmtime_r(const time_t *timep, struct tm *result)
+{
+    struct tm *tmp = gmtime(timep);
+    if (tmp && result) {
+        *result = *tmp;
+        return result;
+    }
+    return NULL;
+}
+
+/* localtime_r - thread-safe localtime */
+static __inline struct tm *localtime_r(const time_t *timep, struct tm *result)
+{
+    struct tm *tmp = localtime(timep);
+    if (tmp && result) {
+        *result = *tmp;
+        return result;
+    }
+    return NULL;
+}
+
+/*
+ * Wide character functions
+ */
+
+/* wcwidth - get display width of wide character */
+static __inline int wcwidth(wchar_t wc)
+{
+    /* Basic implementation:
+     * - 0 for NUL
+     * - -1 for control characters
+     * - 2 for wide characters (CJK, etc.)
+     * - 1 for everything else
+     */
+    if (wc == 0)
+        return 0;
+    if (wc < 32 || (wc >= 0x7f && wc < 0xa0))
+        return -1;
+    /* CJK ranges - very simplified */
+    if ((wc >= 0x1100 && wc <= 0x115f) ||   /* Hangul Jamo */
+        (wc >= 0x2e80 && wc <= 0x9fff) ||   /* CJK */
+        (wc >= 0xac00 && wc <= 0xd7a3) ||   /* Hangul Syllables */
+        (wc >= 0xf900 && wc <= 0xfaff) ||   /* CJK Compat */
+        (wc >= 0xfe10 && wc <= 0xfe1f) ||   /* Vertical Forms */
+        (wc >= 0xfe30 && wc <= 0xfe6f) ||   /* CJK Compat Forms */
+        (wc >= 0xff00 && wc <= 0xff60) ||   /* Fullwidth Forms */
+        (wc >= 0xffe0 && wc <= 0xffe6))     /* Fullwidth Signs */
+        return 2;
+    return 1;
+}
 
 /*
  * Forward declarations for Windows implementations
